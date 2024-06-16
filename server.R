@@ -87,6 +87,12 @@ server <- function(input, output, session) {
     } else {
       data_init2 <- data_init2
     }
+    if (input$filter=="") {
+      data_init2<-data_init2 }
+    else {
+    i=as.character(input$filter)
+    data_init2<-data_init2[!grepl(i,data_init2$gene),]
+    }
     data_init2
   })
 
@@ -209,10 +215,14 @@ server <- function(input, output, session) {
   })
 
   output$boxplot_data <- renderPlot({
+    req(input$file1)
+    req(input$file2)
     boxplot(mat_imp(), col = as.character(groups_color()), las = 2)
   })
 
   output$heatmap_data <- renderPlot({
+    req(input$file1)
+    req(input$file2)
     pheatmap(mat_imp(),
       cluster_cols = TRUE, cluster_rows = FALSE,
       scale = "row", show_rownames = FALSE
@@ -220,12 +230,16 @@ server <- function(input, output, session) {
   })
 
   table <- reactive({
+    req(input$file1)
+    req(input$file2)
     cbind(gene = data()$gene, uniprot = data()$uniprot, round(mat_imp(), 2)) %>%
       as.data.frame() %>%
       remove_rownames()
   })
 
   output$matrix_log_norm_imp <- DT::renderDT({
+    req(input$file1)
+    req(input$file2)
     table()
   })
 
@@ -238,7 +252,7 @@ server <- function(input, output, session) {
     }
   )
 
-  ROTS_result <- reactive({
+  ROTS_result <- reactive({ if (input$stat=="ROTS"){
     validate(need(
       max(rowSums(is.na(mat_imp()))) < 2,
       "Data contains more than two missing values per row"
@@ -247,8 +261,9 @@ server <- function(input, output, session) {
     ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
       groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
     )
+  }
   })
-  ROTS_data <- reactive({
+  ROTS_data <- reactive({if (input$stat=="ROTS"){
     req(ROTS_result())
     as.data.frame(cbind(
       gene = rownames(ROTS_result()$data), ROTS_result()$data,
@@ -257,10 +272,51 @@ server <- function(input, output, session) {
     )) %>%
       remove_rownames() %>%
       mutate(across(2:last_col(), ~ as.numeric(.)))
+  }
   })
 
-  output$volcano <- renderPlot({
-    req(ROTS_data())
-    EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, x = "logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
+  limma <-reactive({ if (input$stat=="limma"){
+    req(input$file1)
+    req(input$file2)
+    if (input$stat=="limma") {
+      condition<-c(rep("group1",length(input$group1_stat)), rep("group2",length(input$group2_stat))) 
+      design = model.matrix(~0+condition)
+      colnames(design)<- gsub("condition","",colnames(design))
+      fit1 = lmFit(mat_imp()[, c(input$group1_stat, input$group2_stat)],design = design)
+      cont <- makeContrasts(group2-group1, levels = design)
+      fit2 = contrasts.fit(fit1,contrasts = cont)
+      fit3 <- eBayes(fit2)
+      limma.results <- topTable(fit3, adjust="BH", n=Inf)
+      colnames(limma.results) <- c("logfc", "AveExpr","t" ,"pvalue", "adjpvalue", "B")
+    }
+    limma.results
+    }
   })
-}
+  output$volcano <- renderPlot({
+    req(input$file1)
+    req(input$file2)
+    if (input$stat=="ROTS"){ 
+    if (input$pval=="p value") {
+    req(ROTS_data())
+    EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, 
+                    x = "logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
+    } else if (input$pval=="adjusted p value / FDR") {
+      req(ROTS_data())
+      EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, 
+                      x = "logfc", y = "FDR", pCutoff = 0.05, FCcutoff = 1)
+    }
+  } else if (input$stat=="limma") {
+    if (input$pval=="p value") {
+    req(limma())
+    EnhancedVolcano(limma(), lab=rownames(limma()),
+                    x="logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
+    } else if (input$pval=="adjusted p value / FDR"){
+      EnhancedVolcano(limma(), lab=rownames(limma()),
+                      x="logfc", y = "adjpvalue", pCutoff = 0.05, FCcutoff = 1)
+    }
+  }
+  })
+  
+
+} 
+

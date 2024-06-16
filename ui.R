@@ -27,8 +27,10 @@ ui <- fluidPage(
           ),
           checkboxInput(inputId="Keep_one",
                         label="Keep only one uniprot/geneID. Shortest uniprot ID is kept.",
-                        value=TRUE)
-        ),
+                        value=TRUE),
+        textInput(inputId="filter", label="Write regex matching input of gene column \n
+                  to filter out selected genes", value="")
+      ),
         mainPanel(
           width = 10,
           br(),
@@ -128,21 +130,27 @@ ui <- fluidPage(
       h5("Please select groups for statistical comparison.\n"),
       fluidRow(
         column(
-          3,
+          2,
           selectInput(
             inputId = "group1_stat", choices = NA,
             label = "Group_1_statistics", multiple = TRUE, selected = NULL
           )
         ),
-        column(3, selectInput(
+        column(2, selectInput(
           inputId = "group2_stat", choices = NA,
           label = "Group_2_statistics", multiple = TRUE, selected = NULL
         )),
-        column(3, selectInput(inputId = "stat", label = "Statistical test to use:", choices = c("ROTS")))
-      ),
+        column(2, selectInput(
+          inputId = "stat", 
+          label = "Statistical test to use:",
+          choices = c("ROTS", "limma"))),
+        column(2, 
+               radioButtons(inputId="pval", 
+                            label="P value to show on volcano plot", 
+                            choices=c("p value", "adjusted p value / FDR")))),
       # output in the form of volcano and heatmap
       fluidRow(
-        withSpinner(plotOutput("volcano")),
+        withSpinner(plotOutput("volcano"))
       )
     )
   )
