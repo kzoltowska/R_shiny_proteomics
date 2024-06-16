@@ -135,6 +135,6 @@ ROTS_data<-reactive({
 
 output$volcano<-renderPlot({
   req(ROTS_data())
-EnhancedVolcano(ROTS_data(), lab=ROTS_data()$gene, x="logfc", y="pvalue")
+EnhancedVolcano(ROTS_data(), lab=ROTS_data()$gene, x="logfc", y="pvalue",  pCutoff=0.05, FCcutoff = 1)
   })
 }

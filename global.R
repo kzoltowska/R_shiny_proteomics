@@ -2,7 +2,7 @@
 packages <- c(
   "shiny", "ggplot2", "pheatmap", "readr", "visdat", "reshape2", "dplyr", "tidyr",
   "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
-  "shinyWidgets", "shinycssloaders", "tibble"
+  "shinyWidgets", "shinycssloaders", "tibble", "stringr"
 )
 packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods")
 for (i in packages) {
@@ -42,6 +42,26 @@ for (i in 1:nrow(sample_info)) {
     }
   }
 }
+
+position <- as.vector(str_split(data$uniprot, pattern = ";"))
+gene_1 <- as.vector(str_split(data$gene, pattern = ";"))
+full_1<-as.vector(str_split(data$full_name, pattern = ";"))
+pos <- c()
+for (i in c(1:length(position))) {
+  pos <- c(pos, match(min(nchar(position[[i]])), as.vector(nchar(position[[i]]))))
+}
+uniprot <- c()
+for (i in c(1:length(pos))) {{ j <- pos[i]
+uniprot <- c(uniprot, position[[i]][j]) }}
+gene <- c()
+for (i in c(1:length(pos))) {{ j <- pos[i]
+gene <- c(gene, gene_1[[i]][j]) }}
+data$uniprot <- uniprot
+data$gene <- gene
+full_name <- c()
+for (i in c(1:length(pos))) {{ j <- pos[i]
+full_name <- c(full_name, full_1[[i]][j]) }}
+data$full_name<-full_name
 
 # creating long dataframe for input to ggplot
 data_long <- data %>% pivot_longer(names_to = "sample", values_to = "intensity", cols = sample_info$Sample_name)
