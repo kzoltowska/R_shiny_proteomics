@@ -4,32 +4,11 @@
 #
 # Author: Katarzyna Zoltowska
 # Aim: Testing proteomics data analysis workflows
-# get all packages
-packages <- c(
-  "shiny", "ggplot2", "pheatmap", "readr", "visdat", "reshape2", "dplyr", "tidyr",
-  "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
-  "shinyWidgets", "shinycssloaders", "tibble"
-)
-packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods")
-for (i in packages) {
-  if (!require(i, character.only = TRUE)) {
-    install.packages(i, dependencies = TRUE)
-    library(i, character.only = TRUE)
-  }
-}
-if (!require("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-BiocManager::install(packages_bioc)
-for (i in packages_bioc) {
-  library(i, character.only = TRUE)
-}
-
 
 ui <- fluidPage(
   # Application title
   titlePanel("Proteomics data analysis"),
-  h2("Hobby project"),
+  h4("Hobby project"),
   # create tabset
   tabsetPanel(
     # create first tab
