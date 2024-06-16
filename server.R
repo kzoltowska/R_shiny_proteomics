@@ -1,15 +1,124 @@
+server <- function(input, output, session) {
+  data_init <- reactive({
+    req(input$file1)
+    req(input$file2)
+    infile <- input$file1
+    read.delim2(infile$datapath, header = TRUE)
+  })
+
+  sample_info <- reactive({
+    req(input$file2)
+    infile2 <- input$file2
+    read.delim2(infile2$datapath, header = TRUE)
+  })
+
+  observe({
+    updateSelectInput(session,
+      inputId = "group1", label = NULL,
+      choices = sample_info()$Sample_name,
+      selected = NULL
+    )
+  })
+  observe({
+    updateSelectInput(session,
+      inputId = "group2", label = NULL,
+      choices = sample_info()$Sample_name,
+      selected = NULL
+    )
+  })
+  observe({
+    updateSelectInput(session,
+      inputId = "group1_stat", label = NULL,
+      choices = sample_info()$Sample_name,
+      selected = NULL
+    )
+  })
+  observe({
+    updateSelectInput(session,
+      inputId = "group2_stat", label = NULL,
+      choices = sample_info()$Sample_name,
+      selected = NULL
+    )
+  })
+
+  groups_color <- reactive({
+    groups <- as.factor(sample_info()$Condition)
+    groups_color_tmp <- groups
+    levels(groups_color_tmp) <- brewer.pal(length(levels(groups)), "Dark2")
+    groups_color_tmp
+  })
+
+  data <- reactive({
+    data_init2 <- data_init()[, c(1, 3, 4, 7:18)] %>% mutate_all(~ ifelse(is.nan(.), NA, .))
+    colnames(data_init2)[colnames(data_init2) == "PG.ProteinGroups"] <- "uniprot"
+    colnames(data_init2)[colnames(data_init2) == "PG.Genes"] <- "gene"
+    colnames(data_init2)[colnames(data_init2) == "PG.ProteinDescriptions"] <- "full_name"
+    for (i in 1:nrow(sample_info())) {
+      for (j in 1:ncol(data_init2)) {
+        if (colnames(data_init2)[j] == sample_info()$Sample_col_name[i]) {
+          colnames(data_init2)[j] <- sample_info()$Sample_name[i]
+        }
+      }
+    }
+    if (input$Keep_one == TRUE) {
+      position <- as.vector(str_split(data_init2$uniprot, pattern = ";"))
+      gene_1 <- as.vector(str_split(data_init2$gene, pattern = ";"))
+      full_1 <- as.vector(str_split(data_init2$full_name, pattern = ";"))
+      pos <- c()
+      for (i in c(1:length(position))) {
+        pos <- c(pos, match(min(nchar(position[[i]])), as.vector(nchar(position[[i]]))))
+      }
+      uniprot <- c()
+      for (i in c(1:length(pos))) {{ j <- pos[i]
+        uniprot <- c(uniprot, position[[i]][j]) }}
+      gene <- c()
+      for (i in c(1:length(pos))) {{ j <- pos[i]
+      if (length(gene_1[i])>=j) {
+        gene <- c(gene, gene_1[[i]][j])} 
+      else{gene <- c(gene, gene_1[[i]][1])
+      }}
+      }
+      data_init2$uniprot <- uniprot
+      data_init2$gene <- gene
+      full_name <- c()
+      for (i in c(1:length(pos))) {{ j <- pos[i]
+        full_name <- c(full_name, full_1[[i]][j]) }}
+      data_init2$full_name <- full_name
+    } else {
+      data_init2 <- data_init2
+    }
+    data_init2
+  })
 
 
-server <- function(input, output) {
+
+  data_long <- reactive({
+    df_long <- data() %>% pivot_longer(
+      names_to = "sample", values_to = "intensity",
+      cols = sample_info()$Sample_name
+    )
+    group_col <- c()
+    for (j in (1:nrow(df_long))) {
+      for (i in (1:nrow(sample_info()))) {
+        if (df_long$sample[j] == sample_info()$Sample_name[i]) {
+          group_col <- c(group_col, sample_info()$Condition[i])
+        }
+      }
+    }
+    df_long$group <- group_col
+    df_long
+  })
+
+
   # create entire data table
   output$entire_data <- DT::renderDT({
-    data %>%
+    data() %>%
       mutate_if(is.numeric, round, digits = 2)
   })
 
   # create summary table
   output$summary_table <- DT::renderDT({
-    df <- as.data.frame(summary(data))
+    df <- as.data.frame(summary(data()))
     df <- df[, c(2, 3)]
     colnames(df) <- c("Variable", "info")
     df$Variable <- as.factor(df$Variable)
@@ -26,7 +135,7 @@ server <- function(input, output) {
 
   # create summary plot
   output$summary_plot <- renderPlot({
-    vis_dat(data[, sample_info$Sample_name]) +
+    vis_dat(data()[, sample_info()$Sample_name]) +
       theme(
         axis.title.y = element_text(size = 16),
         axis.text.x = element_text(size = 15),
@@ -39,23 +148,30 @@ server <- function(input, output) {
   })
 
   output$boxplot_raw <- renderPlot({
-    ggplot(data_long) +
+    ggplot(data_long()) +
       geom_boxplot(aes(x = sample, y = intensity, fill = group)) +
       theme_pubr() +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-      scale_fill_manual(values = levels(groups_color))
+      scale_fill_manual(values = levels(groups_color()))
+  })
+
+  data_long_log <- reactive({
+    data_long_log_temp <- data_long()
+    data_long_log_temp$intensity <- log2(data_long_log_temp$intensity)
+    data_long_log_temp
   })
 
   output$boxplot_log <- renderPlot({
-    data_long$intensity <- log2(data_long$intensity)
-    ggplot(data_long) +
+    ggplot(data_long_log()) +
       geom_boxplot(aes(x = sample, y = intensity, fill = group)) +
       theme_pubr() +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-      scale_fill_manual(values = levels(groups_color))
+      scale_fill_manual(values = levels(groups_color()))
   })
 
   mat_imp <- reactive({
+    mat_tmp <- as.matrix(data()[, c(sample_info()$Sample_name)])
+    rownames(mat_tmp) <- data()$gene
     if (input$log == TRUE) {
       log <- TRUE
     } else {
@@ -81,32 +197,36 @@ server <- function(input, output) {
     }
     if (is.null(input$group1) == TRUE | is.null(input$group2) == TRUE |
       length(input$group1) == 1 | length(input$group2) == 1) {
-      mat_imp <- preprocessing(mat = mat, log = log, norm = norm, imp = imp)
+      mat_imp_all <- preprocessing(mat = mat_tmp, log = log, norm = norm, imp = imp)
     } else {
-      mat1 <- mat[, c(input$group1)]
+      mat1 <- mat_tmp[, c(input$group1)]
       mat_imp1 <- preprocessing(mat = mat1, log = log, norm = norm, imp = imp)
-      mat2 <- mat[, c(input$group2)]
+      mat2 <- mat_tmp[, c(input$group2)]
       mat_imp2 <- preprocessing(mat = mat2, log = log, norm = norm, imp = imp)
-      mat_imp <- cbind(mat_imp1, mat_imp2)
+      mat_imp_all <- cbind(mat_imp1, mat_imp2)
     }
+    mat_imp_all
   })
 
   output$boxplot_data <- renderPlot({
-    boxplot(mat_imp(), col = as.character(groups_color), las = 2)
+    boxplot(mat_imp(), col = as.character(groups_color()), las = 2)
   })
 
   output$heatmap_data <- renderPlot({
-    pheatmap(mat_imp(), cluster_cols = TRUE, cluster_rows = FALSE,
-             scale = "row", show_rownames = FALSE)
+    pheatmap(mat_imp(),
+      cluster_cols = TRUE, cluster_rows = FALSE,
+      scale = "row", show_rownames = FALSE
+    )
   })
 
-  table<-reactive({
-    cbind(gene=data$gene, uniprot = data$uniprot, round(mat_imp(), 2)) %>%
-      as.data.frame() %>% remove_rownames()
+  table <- reactive({
+    cbind(gene = data()$gene, uniprot = data()$uniprot, round(mat_imp(), 2)) %>%
+      as.data.frame() %>%
+      remove_rownames()
   })
-  
+
   output$matrix_log_norm_imp <- DT::renderDT({
-  table()
+    table()
   })
 
   output$downloadData <- downloadHandler(
@@ -117,24 +237,30 @@ server <- function(input, output) {
       write.csv(table(), fname, row.names = FALSE)
     }
   )
-  
-ROTS_result <- reactive({
-  validate(need(max(rowSums(is.na(mat_imp())))<2,
-           "Data contains more than two missing values per row"))
-  req(length(input$group1_stat)>1 & length(input$group2_stat)>1)
-  ROTS(mat_imp()[,c(input$group1_stat, input$group2_stat)],
-           groups=c(rep(0,length(input$group1_stat)), rep(1,length(input$group2_stat))))
-})
-ROTS_data<-reactive({
-  req(ROTS_result())
-  as.data.frame(cbind(gene=rownames(ROTS_result()$data), ROTS_result()$data,
-                      logfc=ROTS_result()$logfc,
-                      pvalue=ROTS_result()$pvalue, FDR=ROTS_result()$FDR)) %>%
-    remove_rownames()  %>% mutate(across(2:last_col(), ~ as.numeric(.)))
-})
 
-output$volcano<-renderPlot({
-  req(ROTS_data())
-EnhancedVolcano(ROTS_data(), lab=ROTS_data()$gene, x="logfc", y="pvalue",  pCutoff=0.05, FCcutoff = 1)
+  ROTS_result <- reactive({
+    validate(need(
+      max(rowSums(is.na(mat_imp()))) < 2,
+      "Data contains more than two missing values per row"
+    ))
+    req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+    ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
+      groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
+    )
+  })
+  ROTS_data <- reactive({
+    req(ROTS_result())
+    as.data.frame(cbind(
+      gene = rownames(ROTS_result()$data), ROTS_result()$data,
+      logfc = ROTS_result()$logfc,
+      pvalue = ROTS_result()$pvalue, FDR = ROTS_result()$FDR
+    )) %>%
+      remove_rownames() %>%
+      mutate(across(2:last_col(), ~ as.numeric(.)))
+  })
+
+  output$volcano <- renderPlot({
+    req(ROTS_data())
+    EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, x = "logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
   })
 }

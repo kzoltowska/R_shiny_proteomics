@@ -17,12 +17,17 @@ ui <- fluidPage(
       sidebarLayout(
         sidebarPanel(
           width = 2,
+          fileInput("file1", "Choose data file"),
+          fileInput("file2", "Choose sample info file"),
           # create radiobuttons to select how to view the data
           radioButtons(
             inputId = "Description",
             label = "How would you like to view the data?",
             choices = c("Entire dataset", "Tabular summary", "Graphical summary", "Boxplot - raw intensities", "Boxplot - log2 intensities")
-          )
+          ),
+          checkboxInput(inputId="Keep_one",
+                        label="Keep only one uniprot/geneID. Shortest uniprot ID is kept.",
+                        value=TRUE)
         ),
         mainPanel(
           width = 10,
@@ -91,11 +96,17 @@ ui <- fluidPage(
       fluidRow(
         column(
           3,
-          selectInput(inputId = "group1", choices = sample_info$Sample_name,
-                      label = "Group_1_normalisation_imputation", multiple = TRUE, selected = NULL)
+          selectInput(
+            inputId = "group1", choices = NA,
+            label = "Group_1_normalisation_imputation",
+            multiple = TRUE, selected = NULL
+          )
         ),
-        column(3, selectInput(inputId = "group2", choices = sample_info$Sample_name,
-                              label = "Group_2_normalisation_imputation", multiple = TRUE, selected = NULL))
+        column(3, selectInput(
+          inputId = "group2", choices = NA,
+          label = "Group_2_normalisation_imputation",
+          multiple = TRUE, selected = NULL
+        ))
       ),
       br(),
       # output in the form of boxplot and heatmap
@@ -107,24 +118,27 @@ ui <- fluidPage(
       # output in the form of table than can be downloaded and saved as csv file
       fluidRow(DTOutput("matrix_log_norm_imp")),
       fluidRow(
-      downloadButton("downloadData", label="Download"),
-      tableOutput("table")
+        downloadButton("downloadData", label = "Download"),
+        tableOutput("table")
       )
     ),
     # new tab for statistical analysis
     tabPanel(
-      title="Statistical analysis",
+      title = "Statistical analysis",
       h5("Please select groups for statistical comparison.\n"),
       fluidRow(
         column(
           3,
-          selectInput(inputId = "group1_stat", choices = sample_info$Sample_name, 
-                      label = "Group_1_statistics", multiple = TRUE, selected = NULL)
+          selectInput(
+            inputId = "group1_stat", choices = NA,
+            label = "Group_1_statistics", multiple = TRUE, selected = NULL
+          )
         ),
-        column(3, selectInput(inputId = "group2_stat", choices = sample_info$Sample_name, 
-                              label = "Group_2_statistics", multiple = TRUE, selected = NULL)),
-        
-        column(3, selectInput(inputId="stat", label="Statistical test to use:", choices = c("ROTS")))
+        column(3, selectInput(
+          inputId = "group2_stat", choices = NA,
+          label = "Group_2_statistics", multiple = TRUE, selected = NULL
+        )),
+        column(3, selectInput(inputId = "stat", label = "Statistical test to use:", choices = c("ROTS")))
       ),
       # output in the form of volcano and heatmap
       fluidRow(
