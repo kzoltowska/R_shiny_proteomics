@@ -92,10 +92,10 @@ ui <- fluidPage(
         column(
           3,
           selectInput(inputId = "group1", choices = sample_info$Sample_name,
-                      label = "Group_1", multiple = TRUE, selected = NULL)
+                      label = "Group_1_normalisation_imputation", multiple = TRUE, selected = NULL)
         ),
         column(3, selectInput(inputId = "group2", choices = sample_info$Sample_name,
-                              label = "Group_2", multiple = TRUE, selected = NULL))
+                              label = "Group_2_normalisation_imputation", multiple = TRUE, selected = NULL))
       ),
       br(),
       # output in the form of boxplot and heatmap
@@ -114,56 +114,22 @@ ui <- fluidPage(
     # new tab for statistical analysis
     tabPanel(
       title="Statistical analysis",
-      fluidRow(
-        br(),
-        column(
-          2,
-          checkboxInput(
-            inputId = "log",
-            label = HTML("<b>Convert to log2</b>")
-          )
-        ),
-        column(
-          3,
-          pickerInput(
-            inputId = "normalisation",
-            label = "Choose normalisation type",
-            choices = c("None", "Quantile", "Cloess")
-          )
-        ),
-        column(
-          3,
-          pickerInput(
-            inputId = "imputation",
-            label = "Choose imputation type",
-            choices = c("None", "MinDet", "ImpSeq", "MissForest", "MinProb"),
-            choicesOpt = list(subtext = c("", "", "", "Very slow (maxiter=1)", ""))
-          )
-        )
-      ),
-      br(),
-      h5("By default the normalisation and imputation is performed on all samples.\n
-         If this should be done by condition, please put selected samples (at least two per group) into respective groups.\n"),
+      h5("Please select groups for statistical comparison.\n"),
       fluidRow(
         column(
           3,
-          selectInput(inputId = "group1", choices = sample_info$Sample_name, 
-                      label = "Group_1", multiple = TRUE, selected = NULL)
+          selectInput(inputId = "group1_stat", choices = sample_info$Sample_name, 
+                      label = "Group_1_statistics", multiple = TRUE, selected = NULL)
         ),
-        column(3, selectInput(inputId = "group2", choices = sample_info$Sample_name, 
-                              label = "Group_2", multiple = TRUE, selected = NULL))
+        column(3, selectInput(inputId = "group2_stat", choices = sample_info$Sample_name, 
+                              label = "Group_2_statistics", multiple = TRUE, selected = NULL)),
+        
+        column(3, selectInput(inputId="stat", label="Statistical test to use:", choices = c("ROTS")))
       ),
-      br(),
       # output in the form of volcano and heatmap
       fluidRow(
-        column(6, withSpinner(plotOutput("volcano"))),
-        column(6, withSpinner(plotOutput("heatmap")))
-      ),
-      br(),
-      # output in the form of table than can be downloaded and saved as csv file
-      fluidRow(DTOutput("matrix_stat")),
-      downloadButton("download", "Download the data"),
-      fluidRow(column(7, dataTableOutput("dto")))
+        withSpinner(plotOutput("volcano")),
+      )
     )
   )
 )

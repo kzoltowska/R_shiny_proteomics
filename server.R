@@ -96,7 +96,8 @@ server <- function(input, output) {
   })
 
   output$heatmap_data <- renderPlot({
-    pheatmap(mat_imp(), cluster_cols = TRUE, cluster_rows = FALSE, scale = "row", show_rownames = FALSE)
+    pheatmap(mat_imp(), cluster_cols = TRUE, cluster_rows = FALSE,
+             scale = "row", show_rownames = FALSE)
   })
 
   table<-reactive({
@@ -116,4 +117,24 @@ server <- function(input, output) {
       write.csv(table(), fname, row.names = FALSE)
     }
   )
+  
+ROTS_result <- reactive({
+  validate(need(max(rowSums(is.na(mat_imp())))<2,
+           "Data contains more than two missing values per row"))
+  req(length(input$group1_stat)>1 & length(input$group2_stat)>1)
+  ROTS(mat_imp()[,c(input$group1_stat, input$group2_stat)],
+           groups=c(rep(0,length(input$group1_stat)), rep(1,length(input$group2_stat))))
+})
+ROTS_data<-reactive({
+  req(ROTS_result())
+  as.data.frame(cbind(gene=rownames(ROTS_result()$data), ROTS_result()$data,
+                      logfc=ROTS_result()$logfc,
+                      pvalue=ROTS_result()$pvalue, FDR=ROTS_result()$FDR)) %>%
+    remove_rownames()  %>% mutate(across(2:last_col(), ~ as.numeric(.)))
+})
+
+output$volcano<-renderPlot({
+  req(ROTS_data())
+EnhancedVolcano(ROTS_data(), lab=ROTS_data()$gene, x="logfc", y="pvalue")
+  })
 }
