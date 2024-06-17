@@ -2,7 +2,7 @@
 packages <- c(
   "shiny", "ggplot2", "pheatmap", "readr", "visdat", "reshape2", "dplyr", "tidyr",
   "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
-  "shinyWidgets", "shinycssloaders", "tibble", "stringr"
+  "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name"
 )
 packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods")
 for (i in packages) {

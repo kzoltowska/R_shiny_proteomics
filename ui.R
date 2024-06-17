@@ -147,10 +147,23 @@ ui <- fluidPage(
         column(2, 
                radioButtons(inputId="pval", 
                             label="P value to show on volcano plot", 
-                            choices=c("p value", "adjusted p value / FDR")))),
+                            choices=c("p value", "adjusted p value / FDR"))),
+        column(2, sliderInput(inputId="slider_p", 
+                              label="P value / FDR cut-off for volcano plot", min=0,
+                              max=1, value=0.05)),
+        column(2, sliderInput(inputId="slider_fc", 
+                              label="LogFC cut-off for volcano plot", min=0, max=4, value=1))
+        ),
       # output in the form of volcano and heatmap
       fluidRow(
         withSpinner(plotOutput("volcano"))
+      ),
+      br(),
+      # output in the form of table than can be downloaded and saved as csv file
+      fluidRow(DTOutput("stat_table")),
+      fluidRow(
+        downloadButton("downloadData_stat", label = "Download"),
+        tableOutput("table_stat")
       )
     )
   )

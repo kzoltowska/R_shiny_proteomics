@@ -252,71 +252,83 @@ server <- function(input, output, session) {
     }
   )
 
-  ROTS_result <- reactive({ if (input$stat=="ROTS"){
+  
+  
+  stat_tmp1 <- reactive({ if (input$stat=="ROTS"){
+    req(input$file1)
+    req(input$file2)
     validate(need(
       max(rowSums(is.na(mat_imp()))) < 2,
       "Data contains more than two missing values per row"
     ))
     req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
-    ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
+    
+    ROTS_tmp1<-ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
       groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
     )
-  }
-  })
-  ROTS_data <- reactive({if (input$stat=="ROTS"){
-    req(ROTS_result())
-    as.data.frame(cbind(
-      gene = rownames(ROTS_result()$data), ROTS_result()$data,
-      logfc = ROTS_result()$logfc,
-      pvalue = ROTS_result()$pvalue, FDR = ROTS_result()$FDR
+    ROTS_tmp1 <- as.data.frame(cbind(
+      gene = rownames(ROTS_tmp1$data), 
+      logfc = ROTS_tmp1$logfc,
+      pvalue = ROTS_tmp1$pvalue, FDR = ROTS_tmp1$FDR, ROTS_tmp1$data
     )) %>%
       remove_rownames() %>%
       mutate(across(2:last_col(), ~ as.numeric(.)))
-  }
+    ROTS_tmp1
+  } else if (input$stat=="limma") {
+    req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+    data_raw<-data() %>% rename_with(~ paste(., "_raw", sep = "_"))
+        condition<-c(rep("group1",length(input$group1_stat)), rep("group2",length(input$group2_stat))) 
+        design = model.matrix(~0+condition)
+        colnames(design)<- gsub("condition","",colnames(design))
+        fit1 = lmFit(mat_imp()[, c(input$group1_stat, input$group2_stat)],design = design)
+        cont <- makeContrasts(group2-group1, levels = design)
+        fit2 = contrasts.fit(fit1,contrasts = cont)
+        fit3 <- eBayes(fit2)
+        limma.results <- topTable(fit3, adjust="BH", n=Inf)
+        colnames(limma.results) <- c("logfc", "AveExpr","t" ,"pvalue", "FDR", "B")
+        limma.results<-cbind(gene=rownames(limma.results),  
+                             limma.results[,c("logfc", "pvalue", "FDR")])
+        rownames(limma.results)<-limma.results$gene
+        limma.results<-merge(limma.results, mat_imp(), by="row.names")
+        limma.results<-subset(limma.results, select=-c(Row.names))
+        limma.results
+      }
   })
 
-  limma <-reactive({ if (input$stat=="limma"){
-    req(input$file1)
-    req(input$file2)
-    if (input$stat=="limma") {
-      condition<-c(rep("group1",length(input$group1_stat)), rep("group2",length(input$group2_stat))) 
-      design = model.matrix(~0+condition)
-      colnames(design)<- gsub("condition","",colnames(design))
-      fit1 = lmFit(mat_imp()[, c(input$group1_stat, input$group2_stat)],design = design)
-      cont <- makeContrasts(group2-group1, levels = design)
-      fit2 = contrasts.fit(fit1,contrasts = cont)
-      fit3 <- eBayes(fit2)
-      limma.results <- topTable(fit3, adjust="BH", n=Inf)
-      colnames(limma.results) <- c("logfc", "AveExpr","t" ,"pvalue", "adjpvalue", "B")
-    }
-    limma.results
-    }
-  })
+stat <- reactive({
+  merge(data()[,c("gene", "uniprot")], stat_tmp1(), by="gene")
+})
+
   output$volcano <- renderPlot({
-    req(input$file1)
-    req(input$file2)
-    if (input$stat=="ROTS"){ 
+    req(stat())
+    pCutoff<-input$slider_p
+    FCcutoff<-input$slider_fc
+
     if (input$pval=="p value") {
-    req(ROTS_data())
-    EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, 
-                    x = "logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
+    EnhancedVolcano(stat(), lab = stat()$gene, 
+                    x = "logfc", y = "pvalue", pCutoff=pCutoff, FCcutoff = FCcutoff)
     } else if (input$pval=="adjusted p value / FDR") {
-      req(ROTS_data())
-      EnhancedVolcano(ROTS_data(), lab = ROTS_data()$gene, 
-                      x = "logfc", y = "FDR", pCutoff = 0.05, FCcutoff = 1)
+      EnhancedVolcano(stat(), lab = stat()$gene, 
+                      x = "logfc", y = "FDR", pCutoff=pCutoff, FCcutoff = FCcutoff)
     }
-  } else if (input$stat=="limma") {
-    if (input$pval=="p value") {
-    req(limma())
-    EnhancedVolcano(limma(), lab=rownames(limma()),
-                    x="logfc", y = "pvalue", pCutoff = 0.05, FCcutoff = 1)
-    } else if (input$pval=="adjusted p value / FDR"){
-      EnhancedVolcano(limma(), lab=rownames(limma()),
-                      x="logfc", y = "adjpvalue", pCutoff = 0.05, FCcutoff = 1)
-    }
-  }
   })
   
+
+  output$stat_table <- DT::renderDT({
+    req(stat_tmp1())
+    req(stat())
+    stat_tmp1<-stat() %>% remove_rownames() %>% mutate_if(is.numeric, round,2)
+  })
+    
+  output$downloadData_stat <- downloadHandler(
+    
+    filename = function() {
+      "stat.csv"
+    },
+    content = function(fname) {
+      write.csv(stat() , fname, row.names = FALSE)
+    }
+  )
 
 } 
 
