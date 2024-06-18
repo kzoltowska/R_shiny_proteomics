@@ -160,7 +160,7 @@ ui <- fluidPage(
         )),
         column(2, sliderInput(
           inputId = "slider_fc",
-          label = "LogFC cut-off for volcano plot", min = 0, max = 4, value = 1
+          label = "LogFC cut-off for volcano plot", min = 0, max = 4, value = 1, step=0.01
         ))
       ),
       fluidRow(

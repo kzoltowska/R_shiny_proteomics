@@ -98,24 +98,6 @@ server <- function(input, output, session) {
 
 
 
-  data_long <- reactive({
-    df_long <- data() %>% pivot_longer(
-      names_to = "sample", values_to = "intensity",
-      cols = sample_info()$Sample_name
-    )
-    group_col <- c()
-    for (j in (1:nrow(df_long))) {
-      for (i in (1:nrow(sample_info()))) {
-        if (df_long$sample[j] == sample_info()$Sample_name[i]) {
-          group_col <- c(group_col, sample_info()$Condition[i])
-        }
-      }
-    }
-    df_long$group <- group_col
-    df_long
-  })
-
-
   # create entire data table
   output$entire_data <- DT::renderDT({
     req(data())
@@ -245,8 +227,6 @@ server <- function(input, output, session) {
     }
   )
 
-
-
   stat_tmp1 <- reactive({
     if (input$stat == "ROTS") {
       req(input$file1)
@@ -267,6 +247,7 @@ server <- function(input, output, session) {
       )) %>%
         remove_rownames() %>%
         mutate(across(2:last_col(), ~ as.numeric(.)))
+      ROTS_tmp1<-ROTS_tmp1[,c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
       ROTS_tmp1
     } else if (input$stat == "limma") {
       req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
@@ -285,7 +266,7 @@ server <- function(input, output, session) {
         limma.results[, c("logfc", "pvalue", "FDR")]
       )
       rownames(limma.results) <- limma.results$gene
-      limma.results <- merge(limma.results, mat_imp(), by = "row.names")
+      limma.results <- merge(limma.results, mat_imp()[,c(input$group1_stat, input$group2_stat)], by = "row.names")
       limma.results <- subset(limma.results, select = -c(Row.names))
       limma.results
     }
@@ -312,22 +293,26 @@ server <- function(input, output, session) {
       )
     }
   })
-  
-stat_subset<-reactive({
-  stat() %>%
-    filter((logfc<input$logfc_heat_tab_min | logfc>input$logfc_heat_tab_max) & FDR<=input$pval_heat_tab)
-})  
 
-output$heatmap_stat<-renderPlot({
-  req(stat())
-  heat_stat_mat<-as.matrix(stat_subset() %>% dplyr::select(c(input$group1_stat, input$group2_stat)) )
-  rownames(heat_stat_mat)<-stat_subset()$gene
-  validate(need(nrow(heat_stat_mat)>=2, "Nothing to display"))
-  pheatmap(heat_stat_mat, show_rownames = input$Rownames_heat, cluster_cols=TRUE, 
-           cluster_rows = TRUE, scale="row")
-})
+  stat_subset <- reactive({
+    data_raw <- data() %>% select(c("uniprot", c(input$group1_stat, input$group2_stat)))
+    colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)] <- paste(colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)],
+                                                                                                          "raw", sep = "_")
+    stat_subset_tmp1 <- merge(stat(), data_raw)
+    stat_subset_tmp1 <- stat_subset_tmp1 %>%
+      filter((logfc < input$logfc_heat_tab_min | logfc > input$logfc_heat_tab_max) & FDR <= input$pval_heat_tab)
+  })
 
-
+  output$heatmap_stat <- renderPlot({
+    req(stat())
+    heat_stat_mat <- as.matrix(stat_subset() %>% dplyr::select(c(input$group1_stat, input$group2_stat)))
+    rownames(heat_stat_mat) <- stat_subset()$gene
+    validate(need(nrow(heat_stat_mat) >= 2, "Nothing to display"))
+    pheatmap(heat_stat_mat,
+      show_rownames = input$Rownames_heat, cluster_cols = TRUE,
+      cluster_rows = TRUE, scale = "row"
+    )
+  })
 
   output$stat_table <- DT::renderDT({
     req(stat_subset())
