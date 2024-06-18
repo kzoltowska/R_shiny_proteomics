@@ -73,11 +73,11 @@ server <- function(input, output, session) {
         uniprot <- c(uniprot, position[[i]][j]) }}
       gene <- c()
       for (i in c(1:length(pos))) {{ j <- pos[i]
-      if (length(gene_1[i])>=j) {
-        gene <- c(gene, gene_1[[i]][j])} 
-      else{gene <- c(gene, gene_1[[i]][1])
-      }}
-      }
+        if (length(gene_1[i]) >= j) {
+          gene <- c(gene, gene_1[[i]][j])
+        } else {
+          gene <- c(gene, gene_1[[i]][1])
+        } }}
       data_init2$uniprot <- uniprot
       data_init2$gene <- gene
       full_name <- c()
@@ -87,11 +87,11 @@ server <- function(input, output, session) {
     } else {
       data_init2 <- data_init2
     }
-    if (input$filter=="") {
-      data_init2<-data_init2 }
-    else {
-    i=as.character(input$filter)
-    data_init2<-data_init2[!grepl(i,data_init2$gene),]
+    if (input$filter == "") {
+      data_init2 <- data_init2
+    } else {
+      i <- as.character(input$filter)
+      data_init2 <- data_init2[!grepl(i, data_init2$gene), ]
     }
     data_init2
   })
@@ -118,12 +118,14 @@ server <- function(input, output, session) {
 
   # create entire data table
   output$entire_data <- DT::renderDT({
+    req(data())
     data() %>%
       mutate_if(is.numeric, round, digits = 2)
   })
 
   # create summary table
   output$summary_table <- DT::renderDT({
+    req(data())
     df <- as.data.frame(summary(data()))
     df <- df[, c(2, 3)]
     colnames(df) <- c("Variable", "info")
@@ -141,6 +143,7 @@ server <- function(input, output, session) {
 
   # create summary plot
   output$summary_plot <- renderPlot({
+    req(data())
     vis_dat(data()[, sample_info()$Sample_name]) +
       theme(
         axis.title.y = element_text(size = 16),
@@ -153,26 +156,16 @@ server <- function(input, output, session) {
       ggtitle("Graphical summary of the data")
   })
 
-  output$boxplot_raw <- renderPlot({
-    ggplot(data_long()) +
-      geom_boxplot(aes(x = sample, y = intensity, fill = group)) +
-      theme_pubr() +
-      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-      scale_fill_manual(values = levels(groups_color()))
-  })
-
-  data_long_log <- reactive({
-    data_long_log_temp <- data_long()
-    data_long_log_temp$intensity <- log2(data_long_log_temp$intensity)
-    data_long_log_temp
-  })
-
-  output$boxplot_log <- renderPlot({
-    ggplot(data_long_log()) +
-      geom_boxplot(aes(x = sample, y = intensity, fill = group)) +
-      theme_pubr() +
-      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-      scale_fill_manual(values = levels(groups_color()))
+  output$barplot <- renderPlot({
+    req(data())
+    p <- barplot(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
+      col = as.character(groups_color()), las = 2,
+      ylim = c(0, max(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))) * 1.5)
+    )
+    text(
+      x = p, y = 20 + colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
+      labels = colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))
+    )
   })
 
   mat_imp <- reactive({
@@ -252,83 +245,88 @@ server <- function(input, output, session) {
     }
   )
 
-  
-  
-  stat_tmp1 <- reactive({ if (input$stat=="ROTS"){
-    req(input$file1)
-    req(input$file2)
-    validate(need(
-      max(rowSums(is.na(mat_imp()))) < 2,
-      "Data contains more than two missing values per row"
-    ))
-    req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
-    
-    ROTS_tmp1<-ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
-      groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
-    )
-    ROTS_tmp1 <- as.data.frame(cbind(
-      gene = rownames(ROTS_tmp1$data), 
-      logfc = ROTS_tmp1$logfc,
-      pvalue = ROTS_tmp1$pvalue, FDR = ROTS_tmp1$FDR, ROTS_tmp1$data
-    )) %>%
-      remove_rownames() %>%
-      mutate(across(2:last_col(), ~ as.numeric(.)))
-    ROTS_tmp1
-  } else if (input$stat=="limma") {
-    req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
-    data_raw<-data() %>% rename_with(~ paste(., "_raw", sep = "_"))
-        condition<-c(rep("group1",length(input$group1_stat)), rep("group2",length(input$group2_stat))) 
-        design = model.matrix(~0+condition)
-        colnames(design)<- gsub("condition","",colnames(design))
-        fit1 = lmFit(mat_imp()[, c(input$group1_stat, input$group2_stat)],design = design)
-        cont <- makeContrasts(group2-group1, levels = design)
-        fit2 = contrasts.fit(fit1,contrasts = cont)
-        fit3 <- eBayes(fit2)
-        limma.results <- topTable(fit3, adjust="BH", n=Inf)
-        colnames(limma.results) <- c("logfc", "AveExpr","t" ,"pvalue", "FDR", "B")
-        limma.results<-cbind(gene=rownames(limma.results),  
-                             limma.results[,c("logfc", "pvalue", "FDR")])
-        rownames(limma.results)<-limma.results$gene
-        limma.results<-merge(limma.results, mat_imp(), by="row.names")
-        limma.results<-subset(limma.results, select=-c(Row.names))
-        limma.results
-      }
+
+
+  stat_tmp1 <- reactive({
+    if (input$stat == "ROTS") {
+      req(input$file1)
+      req(input$file2)
+      validate(need(
+        max(rowSums(is.na(mat_imp()))) < 2,
+        "Data contains more than two missing values per row"
+      ))
+      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+
+      ROTS_tmp1 <- ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
+        groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
+      )
+      ROTS_tmp1 <- as.data.frame(cbind(
+        gene = rownames(ROTS_tmp1$data),
+        logfc = ROTS_tmp1$logfc,
+        pvalue = ROTS_tmp1$pvalue, FDR = ROTS_tmp1$FDR, ROTS_tmp1$data
+      )) %>%
+        remove_rownames() %>%
+        mutate(across(2:last_col(), ~ as.numeric(.)))
+      ROTS_tmp1
+    } else if (input$stat == "limma") {
+      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+      data_raw <- data() %>% rename_with(~ paste(., "_raw", sep = "_"))
+      condition <- c(rep("group1", length(input$group1_stat)), rep("group2", length(input$group2_stat)))
+      design <- model.matrix(~ 0 + condition)
+      colnames(design) <- gsub("condition", "", colnames(design))
+      fit1 <- lmFit(mat_imp()[, c(input$group1_stat, input$group2_stat)], design = design)
+      cont <- makeContrasts(group2 - group1, levels = design)
+      fit2 <- contrasts.fit(fit1, contrasts = cont)
+      fit3 <- eBayes(fit2)
+      limma.results <- topTable(fit3, adjust = "BH", n = Inf)
+      colnames(limma.results) <- c("logfc", "AveExpr", "t", "pvalue", "FDR", "B")
+      limma.results <- cbind(
+        gene = rownames(limma.results),
+        limma.results[, c("logfc", "pvalue", "FDR")]
+      )
+      rownames(limma.results) <- limma.results$gene
+      limma.results <- merge(limma.results, mat_imp(), by = "row.names")
+      limma.results <- subset(limma.results, select = -c(Row.names))
+      limma.results
+    }
   })
 
-stat <- reactive({
-  merge(data()[,c("gene", "uniprot")], stat_tmp1(), by="gene")
-})
+  stat <- reactive({
+    merge(data()[, c("gene", "uniprot")], stat_tmp1(), by = "gene")
+  })
 
   output$volcano <- renderPlot({
     req(stat())
-    pCutoff<-input$slider_p
-    FCcutoff<-input$slider_fc
+    pCutoff <- input$slider_p
+    FCcutoff <- input$slider_fc
 
-    if (input$pval=="p value") {
-    EnhancedVolcano(stat(), lab = stat()$gene, 
-                    x = "logfc", y = "pvalue", pCutoff=pCutoff, FCcutoff = FCcutoff)
-    } else if (input$pval=="adjusted p value / FDR") {
-      EnhancedVolcano(stat(), lab = stat()$gene, 
-                      x = "logfc", y = "FDR", pCutoff=pCutoff, FCcutoff = FCcutoff)
+    if (input$pval == "p value") {
+      EnhancedVolcano(stat(),
+        lab = stat()$gene,
+        x = "logfc", y = "pvalue", pCutoff = pCutoff, FCcutoff = FCcutoff
+      )
+    } else if (input$pval == "adjusted p value / FDR") {
+      EnhancedVolcano(stat(),
+        lab = stat()$gene,
+        x = "logfc", y = "FDR", pCutoff = pCutoff, FCcutoff = FCcutoff
+      )
     }
   })
-  
+
 
   output$stat_table <- DT::renderDT({
-    req(stat_tmp1())
     req(stat())
-    stat_tmp1<-stat() %>% remove_rownames() %>% mutate_if(is.numeric, round,2)
+    stat_tmp1 <- stat() %>%
+      remove_rownames() %>%
+      mutate_if(is.numeric, round, 2)
   })
-    
+
   output$downloadData_stat <- downloadHandler(
-    
     filename = function() {
       "stat.csv"
     },
     content = function(fname) {
-      write.csv(stat() , fname, row.names = FALSE)
+      write.csv(stat(), fname, row.names = FALSE)
     }
   )
-
-} 
-
+}

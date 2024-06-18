@@ -23,14 +23,19 @@ ui <- fluidPage(
           radioButtons(
             inputId = "Description",
             label = "How would you like to view the data?",
-            choices = c("Entire dataset", "Tabular summary", "Graphical summary", "Boxplot - raw intensities", "Boxplot - log2 intensities")
+            choices = c(
+              "Entire dataset", "Tabular summary", "Graphical summary",
+              "Number of identifications"
+            )
           ),
-          checkboxInput(inputId="Keep_one",
-                        label="Keep only one uniprot/geneID. Shortest uniprot ID is kept.",
-                        value=TRUE),
-        textInput(inputId="filter", label="Write regex matching input of gene column \n
-                  to filter out selected genes", value="")
-      ),
+          checkboxInput(
+            inputId = "Keep_one",
+            label = "Keep only one uniprot/geneID. Shortest uniprot ID is kept.",
+            value = TRUE
+          ),
+          textInput(inputId = "filter", label = "Write regex matching input of gene column \n
+                  to filter out selected genes", value = "")
+        ),
         mainPanel(
           width = 10,
           br(),
@@ -51,13 +56,8 @@ ui <- fluidPage(
           ),
           # Show boxplot with raw values
           conditionalPanel(
-            condition = "input.Description == 'Boxplot - raw intensities'",
-            plotOutput("boxplot_raw", height = "600px")
-          ),
-          # Show boxplot with log values
-          conditionalPanel(
-            condition = "input.Description == 'Boxplot - log2 intensities'",
-            plotOutput("boxplot_log", height = "600px")
+            condition = "input.Description == 'Number of identifications'",
+            plotOutput("barplot")
           )
         )
       )
@@ -141,22 +141,47 @@ ui <- fluidPage(
           label = "Group_2_statistics", multiple = TRUE, selected = NULL
         )),
         column(2, selectInput(
-          inputId = "stat", 
+          inputId = "stat",
           label = "Statistical test to use:",
-          choices = c("ROTS", "limma"))),
-        column(2, 
-               radioButtons(inputId="pval", 
-                            label="P value to show on volcano plot", 
-                            choices=c("p value", "adjusted p value / FDR"))),
-        column(2, sliderInput(inputId="slider_p", 
-                              label="P value / FDR cut-off for volcano plot", min=0,
-                              max=1, value=0.05)),
-        column(2, sliderInput(inputId="slider_fc", 
-                              label="LogFC cut-off for volcano plot", min=0, max=4, value=1))
+          choices = c("ROTS", "limma")
+        )),
+        column(
+          2,
+          radioButtons(
+            inputId = "pval",
+            label = "P value to show on volcano plot",
+            choices = c("p value", "adjusted p value / FDR")
+          )
         ),
+        column(2, sliderInput(
+          inputId = "slider_p",
+          label = "P value / FDR cut-off for volcano plot", min = 0,
+          max = 1, value = 0.05
+        )),
+        column(2, sliderInput(
+          inputId = "slider_fc",
+          label = "LogFC cut-off for volcano plot", min = 0, max = 4, value = 1
+        ))
+      ),
+      fluidRow(
+        column(3, numericInput(
+          inputId = "pval_heat_tab", label = "FDR cut-off for heatmap and table",
+          value = 0.05, min = 0, max = 1, step = NA
+        )),
+        column(3, numericInput(
+          inputId = "logfc_heat_tab_min", label = "Lower logFC cut-off for heatmap and table",
+          value = (-1), min = NA, max = NA, step = NA
+        )),
+        column(3, numericInput(
+          inputId = "logfc_heat_tab_max", label = "Upper logFC cut-off for heatmap and table",
+          value = 1, min = NA, max = NA, step = NA
+        )),
+        column(3, checkboxInput(inputId = "Rownames_heat", label = "Display rownames on heatmap", value = FALSE))
+      ),
       # output in the form of volcano and heatmap
       fluidRow(
-        withSpinner(plotOutput("volcano"))
+        column(6, withSpinner(plotOutput("volcano"))),
+        column(6, withSpinner(plotOutput("heatmap_stat")))
       ),
       br(),
       # output in the form of table than can be downloaded and saved as csv file
