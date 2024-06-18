@@ -178,11 +178,14 @@ ui <- fluidPage(
         )),
         column(3, checkboxInput(inputId = "Rownames_heat", label = "Display rownames on heatmap", value = FALSE))
       ),
+      br(),
+      br(),
       # output in the form of volcano and heatmap
       fluidRow(
         column(6, withSpinner(plotOutput("volcano"))),
         column(6, withSpinner(plotOutput("heatmap_stat")))
       ),
+      br(),
       br(),
       # output in the form of table than can be downloaded and saved as csv file
       fluidRow(DTOutput("stat_table")),

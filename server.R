@@ -312,11 +312,26 @@ server <- function(input, output, session) {
       )
     }
   })
+  
+stat_subset<-reactive({
+  stat() %>%
+    filter((logfc<input$logfc_heat_tab_min | logfc>input$logfc_heat_tab_max) & FDR<=input$pval_heat_tab)
+})  
+
+output$heatmap_stat<-renderPlot({
+  req(stat())
+  heat_stat_mat<-as.matrix(stat_subset() %>% dplyr::select(c(input$group1_stat, input$group2_stat)) )
+  rownames(heat_stat_mat)<-stat_subset()$gene
+  validate(need(nrow(heat_stat_mat)>=2, "Nothing to display"))
+  pheatmap(heat_stat_mat, show_rownames = input$Rownames_heat, cluster_cols=TRUE, 
+           cluster_rows = TRUE, scale="row")
+})
+
 
 
   output$stat_table <- DT::renderDT({
-    req(stat())
-    stat_tmp1 <- stat() %>%
+    req(stat_subset())
+    stat_tmp1 <- stat_subset() %>%
       remove_rownames() %>%
       mutate_if(is.numeric, round, 2)
   })
@@ -326,7 +341,7 @@ server <- function(input, output, session) {
       "stat.csv"
     },
     content = function(fname) {
-      write.csv(stat(), fname, row.names = FALSE)
+      write.csv(stat_subset(), fname, row.names = FALSE)
     }
   )
 }
