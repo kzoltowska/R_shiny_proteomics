@@ -299,6 +299,19 @@ server <- function(input, output, session) {
       limma.results <- merge(limma.results, mat_imp()[,c(input$group1_stat, input$group2_stat)], by = "row.names")
       limma.results <- subset(limma.results, select = -c(Row.names))
       limma.results
+    } else if (input$stat=="ttest-BH") {  
+      ttest_tmp1<-mat_imp()[,c(input$group1_stat, input$group2_stat)] %>% as.data.frame()
+      ttest_tmp1<- ttest_tmp1 %>% mutate("mean_g1"=rowMeans(select(.,input$group1_stat))) %>%
+        mutate("mean_g2"=rowMeans(select(.,input$group2_stat))) %>% mutate("logfc"=mean_g2-mean_g1)
+      pvalue <- sapply(1:nrow(ttest_tmp1), 
+                       function(i) t.test(as.numeric(as.character(unlist(ttest_tmp1[i,input$group1_stat]))),
+                                                     as.numeric(as.character(unlist(ttest_tmp1[i,input$group2_stat]))))[c("p.value")])
+      ttest_tmp1$pvalue<-unlist(pvalue)
+      ttest_tmp1$FDR<-p.adjust(pvalue, method="BH", nrow(ttest_tmp1))
+      ttest_tmp1$gene<-rownames(ttest_tmp1)
+      ttest_tmp1<-ttest_tmp1[,c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
+      ttest_tmp1
+      
     }
   })
 

@@ -148,7 +148,7 @@ ui <- fluidPage(
         column(2, selectInput(
           inputId = "stat",
           label = "Statistical test to use:",
-          choices = c("ROTS", "limma")
+          choices = c("ROTS", "limma", "ttest-BH")
         )),
         column(
           2,
