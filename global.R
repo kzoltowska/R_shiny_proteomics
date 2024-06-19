@@ -2,9 +2,9 @@
 packages <- c(
   "shiny", "ggplot2", "pheatmap", "readr", "visdat", "reshape2", "dplyr", "tidyr",
   "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
-  "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name"
+  "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name", "ggalt", "corrplot"
 )
-packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods")
+packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods", "PCAtools")
 for (i in packages) {
   if (!require(i, character.only = TRUE)) {
     install.packages(i, dependencies = TRUE)

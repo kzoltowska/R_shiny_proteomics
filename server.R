@@ -126,28 +126,58 @@ server <- function(input, output, session) {
   # create summary plot
   output$summary_plot <- renderPlot({
     req(data())
-    vis_dat(data()[, sample_info()$Sample_name]) +
+    vis_miss(data()[, sample_info()$Sample_name]) +
       theme(
         axis.title.y = element_text(size = 16),
         axis.text.x = element_text(size = 15),
         legend.key.size = unit(1, "cm"),
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 20),
-        plot.title = element_text(size = 16, face = "bold.italic")
-      ) +
-      ggtitle("Graphical summary of the data")
+        plot.title = element_text(size = 16, face = "bold")
+      ) + ggtitle("Summary of NAs")
   })
 
   output$barplot <- renderPlot({
     req(data())
     p <- barplot(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
       col = as.character(groups_color()), las = 2,
-      ylim = c(0, max(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))) * 1.5)
-    )
+      ylim = c(0, max(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))) * 1.5),
+               main="Number of identifications")
     text(
       x = p, y = 20 + colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
       labels = colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))
     )
+    
+  })
+  
+  output$pca<-renderPlot({
+    metadata<-sample_info()
+    rownames(metadata)<-sample_info()$Sample_name
+    mat<-data()[,c(sample_info()$Sample_name)]
+    mat[is.na(mat)] <- 0
+    pca<-pca(
+      mat=mat,
+      metadata = metadata,
+      center = TRUE,
+      scale = TRUE,
+      rank = NULL,
+      removeVar = NULL,
+      transposed = FALSE
+    )
+    biplot(pca,
+           labSize = 7, pointSize = 7, sizeLoadingsNames = 8,
+           colby = 'Condition', 
+           encircle = TRUE,
+           encircleFill = TRUE,
+           legendPosition = 'top', legendLabSize = 16, legendIconSize = 8.0)
+  })
+  
+  output$cor_plot<-renderPlot({
+    mat<-data()[,c(sample_info()$Sample_name)]
+    mat[is.na(mat)] <- 0
+    res_cor<-cor(mat)
+    corrplot(res_cor, type = "upper", 
+             tl.col = "black", tl.srt = 45)
   })
 
   mat_imp <- reactive({

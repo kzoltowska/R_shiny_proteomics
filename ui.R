@@ -16,7 +16,7 @@ ui <- fluidPage(
       title = "Data overview", fluid = TRUE,
       sidebarLayout(
         sidebarPanel(
-          width = 2,
+          width = 3,
           fileInput("file1", "Choose data file"),
           fileInput("file2", "Choose sample info file"),
           # create radiobuttons to select how to view the data
@@ -24,8 +24,9 @@ ui <- fluidPage(
             inputId = "Description",
             label = "How would you like to view the data?",
             choices = c(
-              "Entire dataset", "Tabular summary", "Graphical summary",
-              "Number of identifications"
+              "Entire dataset", "Tabular summary", "Number of identifications & NA summary", 
+              "PCA and correlation plots"
+            
             )
           ),
           checkboxInput(
@@ -37,8 +38,7 @@ ui <- fluidPage(
                   to filter out selected genes", value = "")
         ),
         mainPanel(
-          width = 10,
-          br(),
+          width = 6,
           # show entire data
           conditionalPanel(
             condition = "input.Description == 'Entire dataset'",
@@ -51,13 +51,18 @@ ui <- fluidPage(
           ),
           # Show a graphical summary
           conditionalPanel(
-            condition = "input.Description == 'Graphical summary'",
-            plotOutput("summary_plot", height = "600px")
-          ),
-          # Show boxplot with raw values
+            condition = "input.Description == 'Number of identifications & NA summary'",
+            plotOutput("barplot"),
+            br(),
+            br(),
+            plotOutput("summary_plot")
+          )
+          ,
+          # Show a graphical summary
           conditionalPanel(
-            condition = "input.Description == 'Number of identifications'",
-            plotOutput("barplot")
+            condition = "input.Description == 'PCA and correlation plots'",
+            plotOutput("pca"),
+            plotOutput("cor_plot")
           )
         )
       )
