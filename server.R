@@ -194,7 +194,11 @@ server <- function(input, output, session) {
       norm <- "Quantile"
     } else if (input$normalisation == "Cloess") {
       norm <- "Cloess"
+    } else if (input$normalisation =="Median") {
+      norm <- "Median"
     }
+    
+    
     if (input$imputation == "None") {
       imp <- "None"
     } else if (input$imputation == "MinDet") {
@@ -206,6 +210,7 @@ server <- function(input, output, session) {
     } else if (input$imputation == "MinProb") {
       imp <- "MinProb"
     }
+    
     if (is.null(input$group1) == TRUE | is.null(input$group2) == TRUE |
       length(input$group1) == 1 | length(input$group2) == 1) {
       mat_imp_all <- preprocessing(mat = mat_tmp, log = log, norm = norm, imp = imp)

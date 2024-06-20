@@ -34,6 +34,8 @@ preprocessing <- function(mat, log, norm, imp) {
     mat_norm <- limma::normalizeQuantiles(mat_log)
   } else if (norm == "Cloess") {
     mat_norm <- normalizeCyclicLoess(mat_log, method = "fast")
+  } else if (norm =="Median") {
+    mat_norm <- normalizeMedianValues(mat_log)
   }
 
   if (imp == "None") {

@@ -16,7 +16,7 @@ ui <- fluidPage(
       title = "Data overview", fluid = TRUE,
       sidebarLayout(
         sidebarPanel(
-          width = 3,
+          width = 4,
           fileInput("file1", "Choose data file"),
           fileInput("file2", "Choose sample info file"),
           # create radiobuttons to select how to view the data
@@ -84,7 +84,7 @@ ui <- fluidPage(
           pickerInput(
             inputId = "normalisation",
             label = "Choose normalisation type",
-            choices = c("None", "Quantile", "Cloess")
+            choices = c("None", "Quantile", "Cloess", "Median")
           )
         ),
         column(
