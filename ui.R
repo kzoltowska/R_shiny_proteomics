@@ -206,7 +206,9 @@ ui <- fluidPage(
         column(3, selectInput(inputId="GOset", label="Choose gene ontology", 
                               choices=c("BP","CC", "MF", "DO"))),
         column(3, radioButtons(inputId="organism", label="Species", choices=c("mouse", "human"),
-                               selected = character(0)))
+                               selected = character(0))),
+        column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
+        column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet", value=10 ))
       ),
       br(),
       fluidRow(column(6, withSpinner(plotOutput("dotplot"))),

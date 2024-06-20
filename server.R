@@ -387,9 +387,7 @@ server <- function(input, output, session) {
   )
   
   BP <-reactive({
-    req(stat_subset())
-    req(input$GOset)
-    req(input$organism)
+
     
     if (input$organism=="mouse") {
       org='org.Mm.eg.db'
@@ -405,9 +403,6 @@ server <- function(input, output, session) {
   })
   
   CC <-reactive({
-    req(stat_subset())
-    req(input$GOset)
-    req(input$organism)
     
     if (input$organism=="mouse") {
       org='org.Mm.eg.db'
@@ -423,9 +418,6 @@ server <- function(input, output, session) {
   })
   
   MF <-reactive({ 
-    req(stat_subset())
-    req(input$GOset)
-    req(input$organism)
     
     if (input$organism=="mouse") {
       org='org.Mm.eg.db'
@@ -442,21 +434,22 @@ server <- function(input, output, session) {
   
   output$dotplot<-renderPlot({
     if (input$GOset=="BP") {
-    dotplot(BP())
+    dotplot(BP(), showCategory=input$ndot)
     } else if (input$GOset=="CC") {
-      dotplot(CC())
+      dotplot(CC(), showCategory=input$ndot)
     } else if (input$GOset=="MF") {
-      dotplot(MF())
+      dotplot(MF(), showCategory=input$ndot)
     }
   })
   
   output$cnetplot<-renderPlot({
+    validate(need(is.null(input$ncnet)==FALSE, "Require number"))
     if (input$GOset=="BP") {
-      cnetplot(BP())
+      cnetplot(BP(), showCategory=input$ncnet)
     } else if (input$GOset=="CC") {
-      cnetplot(CC())
+      cnetplot(CC(), showCategory=input$ncnet)
     } else if (input$GOset=="MF") {
-      cnetplot(MF())
+      cnetplot(MF(), showCategory=input$ncnet)
     }
   })
   
