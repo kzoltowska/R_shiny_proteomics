@@ -198,6 +198,19 @@ ui <- fluidPage(
         downloadButton("downloadData_stat", label = "Download"),
         tableOutput("table_stat")
       )
-    )
+    ),
+    # new tab for functional analysis
+    tabPanel(
+      title = "ORA",
+      fluidRow(
+        column(3, selectInput(inputId="GOset", label="Choose gene ontology", 
+                              choices=c("BP","CC", "MF", "DO"))),
+        column(3, radioButtons(inputId="organism", label="Species", choices=c("mouse", "human"),
+                               selected = character(0)))
+      ),
+      br(),
+      fluidRow(column(6, withSpinner(plotOutput("dotplot"))),
+               column(6, withSpinner(plotOutput("cnetplot")))),
+               )
   )
 )

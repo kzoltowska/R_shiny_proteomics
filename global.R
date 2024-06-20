@@ -4,7 +4,8 @@ packages <- c(
   "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
   "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name", "ggalt", "corrplot", "stats"
 )
-packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods", "PCAtools")
+packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods", "PCAtools", "clusterProfiler",
+                   "org.Hs.eg.db", "org.Mm.eg.db", "enrichplot")
 for (i in packages) {
   if (!require(i, character.only = TRUE)) {
     install.packages(i, dependencies = TRUE)
@@ -14,9 +15,11 @@ for (i in packages) {
 if (!require("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
 }
-BiocManager::install(packages_bioc)
-for (i in packages_bioc) {
-  library(i, character.only = TRUE)
+for (i in packages_bioc)
+if(!require(i,character.only = TRUE)){
+   {BiocManager::install(i)
+   library(i, character.only = TRUE)
+}
 }
 
 

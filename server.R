@@ -266,15 +266,17 @@ server <- function(input, output, session) {
     if (input$stat == "ROTS") {
       req(input$file1)
       req(input$file2)
+      req(mat_imp())
+      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
       validate(need(
         max(rowSums(is.na(mat_imp()))) < 2,
         "Data contains more than two missing values per row"
       ))
-      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
 
       ROTS_tmp1 <- ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
         groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
       )
+      
       ROTS_tmp1 <- as.data.frame(cbind(
         gene = rownames(ROTS_tmp1$data),
         logfc = ROTS_tmp1$logfc,
@@ -282,11 +284,16 @@ server <- function(input, output, session) {
       )) %>%
         remove_rownames() %>%
         mutate(across(2:last_col(), ~ as.numeric(.)))
+      
       ROTS_tmp1<-ROTS_tmp1[,c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
+      
       ROTS_tmp1
     } else if (input$stat == "limma") {
-      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+     
+       req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+      
       data_raw <- data() %>% rename_with(~ paste(., "_raw", sep = "_"))
+      
       condition <- c(rep("group1", length(input$group1_stat)), rep("group2", length(input$group2_stat)))
       design <- model.matrix(~ 0 + condition)
       colnames(design) <- gsub("condition", "", colnames(design))
@@ -306,8 +313,8 @@ server <- function(input, output, session) {
       limma.results
     } else if (input$stat=="ttest-BH") {  
       ttest_tmp1<-mat_imp()[,c(input$group1_stat, input$group2_stat)] %>% as.data.frame()
-      ttest_tmp1<- ttest_tmp1 %>% mutate("mean_g1"=rowMeans(select(.,input$group1_stat))) %>%
-        mutate("mean_g2"=rowMeans(select(.,input$group2_stat))) %>% mutate("logfc"=mean_g2-mean_g1)
+      ttest_tmp1<- ttest_tmp1 %>% mutate("mean_g1"=rowMeans(dplyr::select(.,input$group1_stat))) %>%
+        mutate("mean_g2"=rowMeans(dplyr::select(.,input$group2_stat))) %>% mutate("logfc"=mean_g2-mean_g1)
       pvalue <- sapply(1:nrow(ttest_tmp1), 
                        function(i) t.test(as.numeric(as.character(unlist(ttest_tmp1[i,input$group1_stat]))),
                                                      as.numeric(as.character(unlist(ttest_tmp1[i,input$group2_stat]))))[c("p.value")])
@@ -321,6 +328,7 @@ server <- function(input, output, session) {
   })
 
   stat <- reactive({
+    req(stat_tmp1)
     merge(data()[, c("gene", "uniprot")], stat_tmp1(), by = "gene")
   })
 
@@ -343,7 +351,7 @@ server <- function(input, output, session) {
   })
 
   stat_subset <- reactive({
-    data_raw <- data() %>% select(c("uniprot", c(input$group1_stat, input$group2_stat)))
+    data_raw <- data() %>% dplyr::select(c("uniprot", c(input$group1_stat, input$group2_stat)))
     colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)] <- paste(colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)],
                                                                                                           "raw", sep = "_")
     stat_subset_tmp1 <- merge(stat(), data_raw)
@@ -353,6 +361,7 @@ server <- function(input, output, session) {
 
   output$heatmap_stat <- renderPlot({
     req(stat())
+    req(stat_subset())
     heat_stat_mat <- as.matrix(stat_subset() %>% dplyr::select(c(input$group1_stat, input$group2_stat)))
     rownames(heat_stat_mat) <- stat_subset()$gene
     validate(need(nrow(heat_stat_mat) >= 2, "Nothing to display"))
@@ -363,7 +372,6 @@ server <- function(input, output, session) {
   })
 
   output$stat_table <- DT::renderDT({
-    req(stat_subset())
     stat_tmp1 <- stat_subset() %>%
       remove_rownames() %>%
       mutate_if(is.numeric, round, 2)
@@ -377,4 +385,79 @@ server <- function(input, output, session) {
       write.csv(stat_subset(), fname, row.names = FALSE)
     }
   )
+  
+  BP <-reactive({
+    req(stat_subset())
+    req(input$GOset)
+    req(input$organism)
+    
+    if (input$organism=="mouse") {
+      org='org.Mm.eg.db'
+    } else if (input$organism=="human") {
+      org='org.Hs.eg.db'
+    }
+
+    BP<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
+                         ont = "BP", pvalueCutoff = 0.05,
+             pAdjustMethod = "BH", qvalueCutoff = 0.2, 
+             minGSSize = 10, maxGSSize = 500, readable = TRUE)
+  
+  })
+  
+  CC <-reactive({
+    req(stat_subset())
+    req(input$GOset)
+    req(input$organism)
+    
+    if (input$organism=="mouse") {
+      org='org.Mm.eg.db'
+    } else if (input$organism=="human") {
+      org='org.Hs.eg.db'
+    }
+    
+    CC<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
+                 ont = "CC", pvalueCutoff = 0.05,
+                 pAdjustMethod = "BH", qvalueCutoff = 0.2, 
+                 minGSSize = 10, maxGSSize = 500, readable = TRUE)
+    CC
+  })
+  
+  MF <-reactive({ 
+    req(stat_subset())
+    req(input$GOset)
+    req(input$organism)
+    
+    if (input$organism=="mouse") {
+      org='org.Mm.eg.db'
+    } else if (input$organism=="human") {
+      org='org.Hs.eg.db'
+    }
+    
+    MF<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
+                 ont = "MF", pvalueCutoff = 0.05,
+                 pAdjustMethod = "BH", qvalueCutoff = 0.2, 
+                 minGSSize = 10, maxGSSize = 500, readable = TRUE)
+    MF
+  })
+  
+  output$dotplot<-renderPlot({
+    if (input$GOset=="BP") {
+    dotplot(BP())
+    } else if (input$GOset=="CC") {
+      dotplot(CC())
+    } else if (input$GOset=="MF") {
+      dotplot(MF())
+    }
+  })
+  
+  output$cnetplot<-renderPlot({
+    if (input$GOset=="BP") {
+      cnetplot(BP())
+    } else if (input$GOset=="CC") {
+      cnetplot(CC())
+    } else if (input$GOset=="MF") {
+      cnetplot(MF())
+    }
+  })
+  
 }
