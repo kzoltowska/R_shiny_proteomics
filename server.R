@@ -142,21 +142,21 @@ server <- function(input, output, session) {
     p <- barplot(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
       col = as.character(groups_color()), las = 2,
       ylim = c(0, max(colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))) * 1.5),
-               main="Number of identifications")
+      main = "Number of identifications"
+    )
     text(
       x = p, y = 20 + colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot)))),
       labels = colSums(!is.na(data() %>% dplyr::select(-c(gene, full_name, uniprot))))
     )
-    
   })
-  
-  output$pca<-renderPlot({
-    metadata<-sample_info()
-    rownames(metadata)<-sample_info()$Sample_name
-    mat<-data()[,c(sample_info()$Sample_name)]
+
+  output$pca <- renderPlot({
+    metadata <- sample_info()
+    rownames(metadata) <- sample_info()$Sample_name
+    mat <- data()[, c(sample_info()$Sample_name)]
     mat[is.na(mat)] <- 0
-    pca<-pca(
-      mat=mat,
+    pca <- pca(
+      mat = mat,
       metadata = metadata,
       center = TRUE,
       scale = TRUE,
@@ -165,19 +165,22 @@ server <- function(input, output, session) {
       transposed = FALSE
     )
     biplot(pca,
-           labSize = 7, pointSize = 7, sizeLoadingsNames = 8,
-           colby = 'Condition', 
-           encircle = TRUE,
-           encircleFill = TRUE,
-           legendPosition = 'top', legendLabSize = 16, legendIconSize = 8.0)
+      labSize = 7, pointSize = 7, sizeLoadingsNames = 8,
+      colby = "Condition",
+      encircle = TRUE,
+      encircleFill = TRUE,
+      legendPosition = "top", legendLabSize = 16, legendIconSize = 8.0
+    )
   })
-  
-  output$cor_plot<-renderPlot({
-    mat<-data()[,c(sample_info()$Sample_name)]
+
+  output$cor_plot <- renderPlot({
+    mat <- data()[, c(sample_info()$Sample_name)]
     mat[is.na(mat)] <- 0
-    res_cor<-cor(mat)
-    corrplot(res_cor, type = "upper", 
-             tl.col = "black", tl.srt = 45)
+    res_cor <- cor(mat)
+    corrplot(res_cor,
+      type = "upper",
+      tl.col = "black", tl.srt = 45
+    )
   })
 
   mat_imp <- reactive({
@@ -194,11 +197,11 @@ server <- function(input, output, session) {
       norm <- "Quantile"
     } else if (input$normalisation == "Cloess") {
       norm <- "Cloess"
-    } else if (input$normalisation =="Median") {
+    } else if (input$normalisation == "Median") {
       norm <- "Median"
     }
-    
-    
+
+
     if (input$imputation == "None") {
       imp <- "None"
     } else if (input$imputation == "MinDet") {
@@ -210,7 +213,7 @@ server <- function(input, output, session) {
     } else if (input$imputation == "MinProb") {
       imp <- "MinProb"
     }
-    
+
     if (is.null(input$group1) == TRUE | is.null(input$group2) == TRUE |
       length(input$group1) == 1 | length(input$group2) == 1) {
       mat_imp_all <- preprocessing(mat = mat_tmp, log = log, norm = norm, imp = imp)
@@ -262,21 +265,13 @@ server <- function(input, output, session) {
     }
   )
 
-  stat_tmp1 <- reactive({
-    if (input$stat == "ROTS") {
-      req(input$file1)
-      req(input$file2)
-      req(mat_imp())
-      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
-      validate(need(
-        max(rowSums(is.na(mat_imp()))) < 2,
-        "Data contains more than two missing values per row"
-      ))
 
+  stat_tmp1 <- eventReactive(input$calc_stat, {
+    if (input$stat == "ROTS") {
       ROTS_tmp1 <- ROTS(mat_imp()[, c(input$group1_stat, input$group2_stat)],
         groups = c(rep(1, length(input$group1_stat)), rep(0, length(input$group2_stat)))
       )
-      
+
       ROTS_tmp1 <- as.data.frame(cbind(
         gene = rownames(ROTS_tmp1$data),
         logfc = ROTS_tmp1$logfc,
@@ -284,16 +279,15 @@ server <- function(input, output, session) {
       )) %>%
         remove_rownames() %>%
         mutate(across(2:last_col(), ~ as.numeric(.)))
-      
-      ROTS_tmp1<-ROTS_tmp1[,c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
-      
+
+      ROTS_tmp1 <- ROTS_tmp1[, c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
+
       ROTS_tmp1
     } else if (input$stat == "limma") {
-     
-       req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
-      
+      req(length(input$group1_stat) > 1 & length(input$group2_stat) > 1)
+
       data_raw <- data() %>% rename_with(~ paste(., "_raw", sep = "_"))
-      
+
       condition <- c(rep("group1", length(input$group1_stat)), rep("group2", length(input$group2_stat)))
       design <- model.matrix(~ 0 + condition)
       colnames(design) <- gsub("condition", "", colnames(design))
@@ -308,32 +302,46 @@ server <- function(input, output, session) {
         limma.results[, c("logfc", "pvalue", "FDR")]
       )
       rownames(limma.results) <- limma.results$gene
-      limma.results <- merge(limma.results, mat_imp()[,c(input$group1_stat, input$group2_stat)], by = "row.names")
+      limma.results <- merge(limma.results, mat_imp()[, c(input$group1_stat, input$group2_stat)], by = "row.names")
       limma.results <- subset(limma.results, select = -c(Row.names))
       limma.results
-    } else if (input$stat=="ttest-BH") {  
-      ttest_tmp1<-mat_imp()[,c(input$group1_stat, input$group2_stat)] %>% as.data.frame()
-      ttest_tmp1<- ttest_tmp1 %>% mutate("mean_g1"=rowMeans(dplyr::select(.,input$group1_stat))) %>%
-        mutate("mean_g2"=rowMeans(dplyr::select(.,input$group2_stat))) %>% mutate("logfc"=mean_g2-mean_g1)
-      pvalue <- sapply(1:nrow(ttest_tmp1), 
-                       function(i) t.test(as.numeric(as.character(unlist(ttest_tmp1[i,input$group1_stat]))),
-                                                     as.numeric(as.character(unlist(ttest_tmp1[i,input$group2_stat]))))[c("p.value")])
-      ttest_tmp1$pvalue<-unlist(pvalue)
-      ttest_tmp1$FDR<-p.adjust(pvalue, method="BH", nrow(ttest_tmp1))
-      ttest_tmp1$gene<-rownames(ttest_tmp1)
-      ttest_tmp1<-ttest_tmp1[,c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
+    } else if (input$stat == "ttest-BH") {
+      ttest_tmp1 <- mat_imp()[, c(input$group1_stat, input$group2_stat)] %>% as.data.frame()
+      ttest_tmp1 <- ttest_tmp1 %>%
+        mutate("mean_g1" = rowMeans(dplyr::select(., input$group1_stat))) %>%
+        mutate("mean_g2" = rowMeans(dplyr::select(., input$group2_stat))) %>%
+        mutate("logfc" = mean_g2 - mean_g1)
+      pvalue <- sapply(
+        1:nrow(ttest_tmp1),
+        function(i) {
+          t.test(
+            as.numeric(as.character(unlist(ttest_tmp1[i, input$group1_stat]))),
+            as.numeric(as.character(unlist(ttest_tmp1[i, input$group2_stat])))
+          )[c("p.value")]
+        }
+      )
+      ttest_tmp1$pvalue <- unlist(pvalue)
+      ttest_tmp1$FDR <- p.adjust(pvalue, method = "BH", nrow(ttest_tmp1))
+      ttest_tmp1$gene <- rownames(ttest_tmp1)
+      ttest_tmp1 <- ttest_tmp1[, c("gene", "logfc", "pvalue", "FDR", c(input$group1_stat, input$group2_stat))]
       ttest_tmp1
-      
     }
   })
 
   stat <- reactive({
-    req(stat_tmp1)
+    req(data())
+    req(stat_tmp1())
     merge(data()[, c("gene", "uniprot")], stat_tmp1(), by = "gene")
   })
 
   output$volcano <- renderPlot({
     req(stat())
+    if (input$stat == "ROTS") {
+      validate(need(
+        max(rowSums(is.na(mat_imp()))) < 2,
+        "For ROTS data cannot contain more than two missing values per row"
+      ))
+    }
     pCutoff <- input$slider_p
     FCcutoff <- input$slider_fc
 
@@ -351,9 +359,12 @@ server <- function(input, output, session) {
   })
 
   stat_subset <- reactive({
+    req(data(), stat())
     data_raw <- data() %>% dplyr::select(c("uniprot", c(input$group1_stat, input$group2_stat)))
     colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)] <- paste(colnames(data_raw)[colnames(data_raw) %in% c(input$group1_stat, input$group2_stat)],
-                                                                                                          "raw", sep = "_")
+      "raw",
+      sep = "_"
+    )
     stat_subset_tmp1 <- merge(stat(), data_raw)
     stat_subset_tmp1 <- stat_subset_tmp1 %>%
       filter((logfc < input$logfc_heat_tab_min | logfc > input$logfc_heat_tab_max) & FDR <= input$pval_heat_tab)
@@ -364,7 +375,7 @@ server <- function(input, output, session) {
     req(stat_subset())
     heat_stat_mat <- as.matrix(stat_subset() %>% dplyr::select(c(input$group1_stat, input$group2_stat)))
     rownames(heat_stat_mat) <- stat_subset()$gene
-    validate(need(nrow(heat_stat_mat) >= 2, "Nothing to display"))
+    validate(need(nrow(heat_stat_mat) >= 2 & ncol(heat_stat_mat) > 0, "Nothing to display"))
     pheatmap(heat_stat_mat,
       show_rownames = input$Rownames_heat, cluster_cols = TRUE,
       cluster_rows = TRUE, scale = "row"
@@ -372,7 +383,8 @@ server <- function(input, output, session) {
   })
 
   output$stat_table <- DT::renderDT({
-    stat_tmp1 <- stat_subset() %>%
+    req(stat_subset())
+    stat_tmp2 <- stat_subset() %>%
       remove_rownames() %>%
       mutate_if(is.numeric, round, 2)
   })
@@ -385,72 +397,132 @@ server <- function(input, output, session) {
       write.csv(stat_subset(), fname, row.names = FALSE)
     }
   )
-  
-  BP <-reactive({
 
-    
-    if (input$organism=="mouse") {
-      org='org.Mm.eg.db'
-    } else if (input$organism=="human") {
-      org='org.Hs.eg.db'
+  BP <- eventReactive(input$calc_ora, {
+    req(input$organism)
+
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
     }
 
-    BP<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
-                         ont = "BP", pvalueCutoff = 0.05,
-             pAdjustMethod = "BH", qvalueCutoff = 0.2, 
-             minGSSize = 10, maxGSSize = 500, readable = TRUE)
-  
+    enrichGO(stat_subset()$uniprot,
+      OrgDb = org, keyType = "UNIPROT",
+      ont = "BP", pvalueCutoff = 0.05,
+      pAdjustMethod = "BH", qvalueCutoff = 0.2,
+      minGSSize = 10, maxGSSize = 500, readable = TRUE
+    )
   })
-  
-  CC <-reactive({
-    
-    if (input$organism=="mouse") {
-      org='org.Mm.eg.db'
-    } else if (input$organism=="human") {
-      org='org.Hs.eg.db'
+
+  CC <- eventReactive(input$calc_ora, {
+    req(input$organism)
+
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
     }
-    
-    CC<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
-                 ont = "CC", pvalueCutoff = 0.05,
-                 pAdjustMethod = "BH", qvalueCutoff = 0.2, 
-                 minGSSize = 10, maxGSSize = 500, readable = TRUE)
-    CC
+
+    enrichGO(stat_subset()$uniprot,
+      OrgDb = org, keyType = "UNIPROT",
+      ont = "CC", pvalueCutoff = 0.05,
+      pAdjustMethod = "BH", qvalueCutoff = 0.2,
+      minGSSize = 10, maxGSSize = 500, readable = TRUE
+    )
   })
-  
-  MF <-reactive({ 
-    
-    if (input$organism=="mouse") {
-      org='org.Mm.eg.db'
-    } else if (input$organism=="human") {
-      org='org.Hs.eg.db'
+
+  MF <- eventReactive(input$calc_ora, {
+    req(input$organism)
+
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
     }
+
+    enrichGO(stat_subset()$uniprot,
+      OrgDb = org, keyType = "UNIPROT",
+      ont = "MF", pvalueCutoff = 0.05,
+      pAdjustMethod = "BH", qvalueCutoff = 0.2,
+      minGSSize = 10, maxGSSize = 500, readable = TRUE
+    )
+  })
+
+  output$dotplot <- renderPlot({
     
-    MF<-enrichGO(stat_subset()$uniprot, OrgDb=org, keyType = "UNIPROT", 
-                 ont = "MF", pvalueCutoff = 0.05,
-                 pAdjustMethod = "BH", qvalueCutoff = 0.2, 
-                 minGSSize = 10, maxGSSize = 500, readable = TRUE)
-    MF
-  })
-  
-  output$dotplot<-renderPlot({
-    if (input$GOset=="BP") {
-    dotplot(BP(), showCategory=input$ndot)
-    } else if (input$GOset=="CC") {
-      dotplot(CC(), showCategory=input$ndot)
-    } else if (input$GOset=="MF") {
-      dotplot(MF(), showCategory=input$ndot)
-    }
-  })
-  
-  output$cnetplot<-renderPlot({
-    validate(need(is.null(input$ncnet)==FALSE, "Require number"))
-    if (input$GOset=="BP") {
-      cnetplot(BP(), showCategory=input$ncnet)
-    } else if (input$GOset=="CC") {
-      cnetplot(CC(), showCategory=input$ncnet)
-    } else if (input$GOset=="MF") {
-      cnetplot(MF(), showCategory=input$ncnet)
+    validate(need(input$ndot, "Require number"))
+
+    if (input$GOset == "BP") {
+      dotplot(BP(), showCategory = input$ndot)
+    } else if (input$GOset == "CC") {
+      dotplot(CC(), showCategory = input$ndot)
+    } else if (input$GOset == "MF") {
+      dotplot(MF(), showCategory = input$ndot)
     }
   })
+
+  output$cnetplot <- renderPlot({
+    validate(need(input$ncnet, "Require number"))
+    if (input$GOset == "BP") {
+      cnetplot(BP(), showCategory = input$ncnet)
+    } else if (input$GOset == "CC") {
+      cnetplot(CC(), showCategory = input$ncnet)
+    } else if (input$GOset == "MF") {
+      cnetplot(MF(), showCategory = input$ncnet)
+    }
+  })
+
+
+  simMatrix_BP <- reactive({
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+
+    calculateSimMatrix(BP()$ID,
+      orgdb = org,
+      ont = "BP",
+      method = "Rel"
+    )
+  })
+
+  scores_BP <- reactive({
+    BP()
+    setNames(-log10(BP()$qvalue), BP()$ID)
+  })
+
+  reducedTerms_BP <- reactive({
+    req(simMatrix_BP(), scores_BP())
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+    reduceSimMatrix(simMatrix_BP(),
+      scores_BP(),
+      threshold = 0.7,
+      orgdb = org
+    )
+  })
+
+  output$simheat <- renderPlot({
+    req(simMatrix_BP(), reducedTerms_BP())
+    heatmapPlot(simMatrix_BP(),
+      reducedTerms_BP(),
+      annotateParent = TRUE,
+      annotationLabel = "parentTerm",
+      fontsize = 6
+    )
+  })
   
+  output$simsquare <- renderPlot({
+    req(reducedTerms_BP())
+    treemapPlot(reducedTerms_BP())
+  })
+  
+  output$reducedTerms<-renderDT({
+    reducedTerms_BP()
+  })
 }

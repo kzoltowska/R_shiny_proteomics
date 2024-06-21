@@ -150,14 +150,16 @@ ui <- fluidPage(
           label = "Statistical test to use:",
           choices = c("ROTS", "limma", "ttest-BH")
         )),
+        column(2, actionButton(inputId="calc_stat","Calculate"))
+      ),
+      fluidRow(
         column(
           2,
           radioButtons(
             inputId = "pval",
             label = "P value to show on volcano plot",
             choices = c("p value", "adjusted p value / FDR")
-          )
-        ),
+          )),
         column(2, sliderInput(
           inputId = "slider_p",
           label = "P value / FDR cut-off for volcano plot", min = 0,
@@ -166,9 +168,7 @@ ui <- fluidPage(
         column(2, sliderInput(
           inputId = "slider_fc",
           label = "LogFC cut-off for volcano plot", min = 0, max = 4, value = 1, step=0.01
-        ))
-      ),
-      fluidRow(
+        )),
         column(3, numericInput(
           inputId = "pval_heat_tab", label = "FDR cut-off for heatmap and table",
           value = 0.05, min = 0, max = 1, step = NA
@@ -202,17 +202,28 @@ ui <- fluidPage(
     # new tab for functional analysis
     tabPanel(
       title = "ORA",
+      br(),
+      br(),
       fluidRow(
-        column(3, selectInput(inputId="GOset", label="Choose gene ontology", 
+        column(2, selectInput(inputId="GOset", label="Choose gene ontology", 
                               choices=c("BP","CC", "MF", "DO"))),
-        column(3, radioButtons(inputId="organism", label="Species", choices=c("mouse", "human"),
+        column(2, radioButtons(inputId="organism", label="Species", choices=c("mouse", "human"),
                                selected = character(0))),
-        column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
-        column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet", value=10 ))
+        column(2, actionButton(inputId="calc_ora",label="Calculate")),
+        column(2,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
+        column(2,numericInput(label="Number of categories on cnet plot", inputId = "ncnet", value=10 ))
       ),
       br(),
       fluidRow(column(6, withSpinner(plotOutput("dotplot"))),
                column(6, withSpinner(plotOutput("cnetplot")))),
-               )
+    
+    br(),
+    br(),
+    br(),
+    
+    fluidRow(column(6, withSpinner(plotOutput("simheat"))),
+             column(6, withSpinner(plotOutput("simsquare")))),
+    fluidRow(withSpinner(DTOutput("reducedTerms")))
+  )
   )
 )

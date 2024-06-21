@@ -5,7 +5,7 @@ packages <- c(
   "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name", "ggalt", "corrplot", "stats"
 )
 packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods", "PCAtools", "clusterProfiler",
-                   "org.Hs.eg.db", "org.Mm.eg.db", "enrichplot")
+                   "org.Hs.eg.db", "org.Mm.eg.db", "enrichplot", "rrvgo")
 for (i in packages) {
   if (!require(i, character.only = TRUE)) {
     install.packages(i, dependencies = TRUE)
