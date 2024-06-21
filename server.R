@@ -450,29 +450,43 @@ server <- function(input, output, session) {
   })
 
   output$dotplot <- renderPlot({
-    
-    validate(need(input$ndot, "Require number"))
+    validate(need(input$ndot, "Requires number"))
 
     if (input$GOset == "BP") {
+      req(BP())
       dotplot(BP(), showCategory = input$ndot)
     } else if (input$GOset == "CC") {
+      req(CC())
       dotplot(CC(), showCategory = input$ndot)
     } else if (input$GOset == "MF") {
+      req(MF())
       dotplot(MF(), showCategory = input$ndot)
     }
   })
 
   output$cnetplot <- renderPlot({
-    validate(need(input$ncnet, "Require number"))
+    validate(need(input$ncnet, "Requires number"))
     if (input$GOset == "BP") {
+      req(BP())
       cnetplot(BP(), showCategory = input$ncnet)
     } else if (input$GOset == "CC") {
+      req(CC())
       cnetplot(CC(), showCategory = input$ncnet)
     } else if (input$GOset == "MF") {
+      req(MF())
       cnetplot(MF(), showCategory = input$ncnet)
     }
   })
 
+output$oratable<-renderDT({
+  if (input$GOset == "BP") {
+    BP()@result
+  } else if (input$GOset == "CC") {
+    CC()@result
+  } else if (input$GOset == "MF") {
+    MF()@results
+  }
+})
 
   simMatrix_BP <- reactive({
     if (input$organism == "mouse") {
@@ -506,23 +520,123 @@ server <- function(input, output, session) {
       orgdb = org
     )
   })
+  
+  
+  simMatrix_CC <- reactive({
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+    
+    calculateSimMatrix(CC()$ID,
+                       orgdb = org,
+                       ont = "CC",
+                       method = "Rel"
+    )
+  })
+  
+  scores_CC <- reactive({
+    CC()
+    setNames(-log10(CC()$qvalue), CC()$ID)
+  })
+  
+  reducedTerms_CC <- reactive({
+    req(simMatrix_CC(), scores_CC())
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+    reduceSimMatrix(simMatrix_CC(),
+                    scores_CC(),
+                    threshold = 0.7,
+                    orgdb = org
+    )
+  })
+  
+  
+  simMatrix_MF <- reactive({
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+    
+    calculateSimMatrix(MF()$ID,
+                       orgdb = org,
+                       ont = "MF",
+                       method = "Rel"
+    )
+  })
+  
+  scores_MF <- reactive({
+    MF()
+    setNames(-log10(MF()$qvalue), MF()$ID)
+  })
+  
+  reducedTerms_MF <- reactive({
+    req(simMatrix_MF(), scores_MF())
+    if (input$organism == "mouse") {
+      org <- "org.Mm.eg.db"
+    } else if (input$organism == "human") {
+      org <- "org.Hs.eg.db"
+    }
+    reduceSimMatrix(simMatrix_MF(),
+                    scores_MF(),
+                    threshold = 0.7,
+                    orgdb = org
+    )
+  })
 
   output$simheat <- renderPlot({
+    if (input$GOset=="BP") {
     req(simMatrix_BP(), reducedTerms_BP())
     heatmapPlot(simMatrix_BP(),
       reducedTerms_BP(),
       annotateParent = TRUE,
       annotationLabel = "parentTerm",
-      fontsize = 6
-    )
+      fontsize = 6)
+    } else if (input$GOset=="CC") {
+      req(simMatrix_CC(), reducedTerms_CC())
+      heatmapPlot(simMatrix_CC(),
+                  reducedTerms_CC(),
+                  annotateParent = TRUE,
+                  annotationLabel = "parentTerm",
+                  fontsize = 6)
+    } else if (input$GOset=="MF") {
+      req(simMatrix_MF(), reducedTerms_MF())
+      heatmapPlot(simMatrix_MF(),
+                  reducedTerms_MF(),
+                  annotateParent = TRUE,
+                  annotationLabel = "parentTerm",
+                  fontsize = 6)
+    }
   })
   
   output$simsquare <- renderPlot({
+    if (input$GOset=="BP") {
     req(reducedTerms_BP())
     treemapPlot(reducedTerms_BP())
+    } else if (input$GOset=="CC") {
+      req(reducedTerms_CC())
+      treemapPlot(reducedTerms_CC())
+    } else if (input$GOset=="MF"){
+      req(reducedTerms_MF())
+      treemapPlot(reducedTerms_MF())
+    }
   })
   
   output$reducedTerms<-renderDT({
+    if (input$GOset=="BP") {
+      req(reducedTerms_BP())
     reducedTerms_BP()
+    } else if (input$GOset=="CC") {
+      req(reducedTerms_CC())
+      reducedTerms_CC() 
+    } else if (input$GOset=="MF") {
+      req(reducedTerms_MF())
+      reducedTerms_MF() 
+    }
   })
 }

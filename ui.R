@@ -207,11 +207,10 @@ ui <- fluidPage(
       fluidRow(
         column(2, selectInput(inputId="GOset", label="Choose gene ontology", 
                               choices=c("BP","CC", "MF", "DO"))),
-        column(2, radioButtons(inputId="organism", label="Species", choices=c("mouse", "human"),
-                               selected = character(0))),
+        column(2, radioButtons(inputId="organism", label="Species", choices=c("human", "mouse"))),
         column(2, actionButton(inputId="calc_ora",label="Calculate")),
-        column(2,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
-        column(2,numericInput(label="Number of categories on cnet plot", inputId = "ncnet", value=10 ))
+        column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
+        column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet", value=10 ))
       ),
       br(),
       fluidRow(column(6, withSpinner(plotOutput("dotplot"))),
@@ -219,6 +218,7 @@ ui <- fluidPage(
     
     br(),
     br(),
+    fluidRow(withSpinner(DTOutput("oratable"))),
     br(),
     
     fluidRow(column(6, withSpinner(plotOutput("simheat"))),
