@@ -6,6 +6,7 @@
 # Aim: Testing proteomics data analysis workflows
 
 ui <- fluidPage(
+  position="fixed-top",
   # Application title
   titlePanel("Proteomics data analysis"),
   h4("Hobby project"),
@@ -92,7 +93,7 @@ ui <- fluidPage(
           pickerInput(
             inputId = "imputation",
             label = "Choose imputation type",
-            choices = c("None", "MinDet", "ImpSeq", "MissForest", "MinProb"),
+            choices = c("None", "MinDet", "ImpSeq", "MissForest", "MinProb", "KNN"),
             choicesOpt = list(subtext = c("", "", "", "Very slow (maxiter=1)", ""))
           )
         )
@@ -116,6 +117,12 @@ ui <- fluidPage(
         ))
       ),
       br(),
+      fluidRow(
+        column(3, withSpinner(plotOutput("dens_raw"))),
+        column(3, withSpinner(plotOutput("dens_log"))),
+        column(3, withSpinner(plotOutput("dens_norm"))),
+        column(3, withSpinner(plotOutput("dens_imp")))
+      ),
       # output in the form of boxplot and heatmap
       fluidRow(
         column(6, withSpinner(plotOutput("boxplot_data"))),
@@ -206,7 +213,7 @@ ui <- fluidPage(
       br(),
       fluidRow(
         column(2, selectInput(inputId="GOset", label="Choose gene ontology", 
-                              choices=c("BP","CC", "MF", "DO"))),
+                              choices=c("BP","CC", "MF"))),
         column(2, radioButtons(inputId="organism", label="Species", choices=c("human", "mouse"))),
         column(2, actionButton(inputId="calc_ora",label="Calculate")),
         column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot", value=10  )),
@@ -224,6 +231,23 @@ ui <- fluidPage(
     fluidRow(column(6, withSpinner(plotOutput("simheat"))),
              column(6, withSpinner(plotOutput("simsquare")))),
     fluidRow(withSpinner(DTOutput("reducedTerms")))
+  ),
+  tabPanel(
+    title = "DOSE",
+    br(),
+    br(),
+    fluidRow(
+      column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot_DO", value=10  )),
+      column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet_DO", value=10 ))
+    ),
+    br(),
+    fluidRow(column(6, withSpinner(plotOutput("dotplot_DO"))),
+             column(6, withSpinner(plotOutput("cnetplot_DO")))),
+    
+    br(),
+    br(),
+    fluidRow(withSpinner(DTOutput("DOtable"))),
+    br(),
   )
-  )
+)
 )

@@ -2,10 +2,11 @@
 packages <- c(
   "shiny", "ggplot2", "pheatmap", "readr", "visdat", "reshape2", "dplyr", "tidyr",
   "ggpubr", "RColorBrewer", "imputeLCMD", "rrcovNA", "standby", "missForest", "DT",
-  "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name", "ggalt", "corrplot", "stats"
+  "shinyWidgets", "shinycssloaders", "tibble", "stringr", "name", "ggalt", "corrplot", "stats",
+  "impute"
 )
 packages_bioc <- c("limma", "ROTS", "EnhancedVolcano", "pcaMethods", "PCAtools", "clusterProfiler",
-                   "org.Hs.eg.db", "org.Mm.eg.db", "enrichplot", "rrvgo")
+                   "org.Hs.eg.db", "org.Mm.eg.db", "enrichplot", "rrvgo","biomaRt", "DOSE")
 for (i in packages) {
   if (!require(i, character.only = TRUE)) {
     install.packages(i, dependencies = TRUE)
@@ -52,6 +53,11 @@ preprocessing <- function(mat, log, norm, imp) {
     mat_imp <- mat_imp_mF$ximp
   } else if (imp == "MinProb") {
     mat_imp <- impute.MinProb(mat_norm)
+  } else if (imp == "KNN") {
+    mat_imp <- impute.knn(mat_norm)
+    mat_imp<-mat_imp$data
   }
   return(mat_imp)
 }
+
+humanmart<-useMart("ensembl", dataset = "hsapiens_gene_ensembl")

@@ -191,6 +191,7 @@ server <- function(input, output, session) {
     } else {
       log <- FALSE
     }
+    
     if (input$normalisation == "None") {
       norm <- "None"
     } else if (input$normalisation == "Quantile") {
@@ -212,7 +213,10 @@ server <- function(input, output, session) {
       imp <- "MissForest"
     } else if (input$imputation == "MinProb") {
       imp <- "MinProb"
+    } else if (input$imputation == "KNN") {
+      imp <- "KNN"
     }
+      
 
     if (is.null(input$group1) == TRUE | is.null(input$group2) == TRUE |
       length(input$group1) == 1 | length(input$group2) == 1) {
@@ -240,6 +244,62 @@ server <- function(input, output, session) {
       cluster_cols = TRUE, cluster_rows = FALSE,
       scale = "row", show_rownames = FALSE
     )
+  })
+  
+  output$dens_raw <- renderPlot({
+    req(input$file1)
+    req(input$file2)
+    mat_tmp <- as.matrix(data()[, c(sample_info()$Sample_name)])
+    rownames(mat_tmp) <- data()$gene
+    plotDensities(mat_tmp, main="Raw data", legend="topright")
+  })
+  
+  output$dens_log<-renderPlot({    
+    req(input$file1)
+    req(input$file2)
+  mat_tmp <- as.matrix(data()[, c(sample_info()$Sample_name)])
+  rownames(mat_tmp) <- data()$gene
+    plotDensities(log(mat_tmp,2), main="Log2 data", legend="topright")
+  })
+  
+  output$dens_norm<-renderPlot({ 
+    req(input$file1)
+    req(input$file2)
+    if (input$normalisation == "None") {
+      norm <- "None"
+    } else if (input$normalisation == "Quantile") {
+      norm <- "Quantile"
+    } else if (input$normalisation == "Cloess") {
+      norm <- "Cloess"
+    } else if (input$normalisation == "Median") {
+      norm <- "Median"
+    }
+    
+    imp_n<-"None"
+    
+    log=TRUE
+    
+    if (is.null(input$group1) == TRUE | is.null(input$group2) == TRUE |
+        length(input$group1) == 1 | length(input$group2) == 1) {
+      mat_tmp <- as.matrix(data()[, c(sample_info()$Sample_name)])
+      rownames(mat_tmp) <- data()$gene
+      mat_imp_all_d <- preprocessing(mat = mat_tmp, log = log, norm = norm, imp = imp_n)
+    } else {
+      mat_tmp <- as.matrix(data()[, c(sample_info()$Sample_name)])
+      rownames(mat_tmp) <- data()$gene
+      mat1_d <- mat_tmp[, c(input$group1)]
+      mat_imp1_d <- preprocessing(mat = mat1_d, log = log, norm = norm, imp = imp_n)
+      mat2_d <- mat_tmp[, c(input$group2)]
+      mat_imp2_d <- preprocessing(mat = mat2_d, log = log, norm = norm, imp = imp_n)
+      mat_imp_all_d <- cbind(mat_imp1_d, mat_imp2_d)
+    }
+    plotDensities(mat_imp_all_d, main="Log2 normalised data", legend="topright")
+  })
+  
+  output$dens_imp<-renderPlot({
+    req(input$file1)
+    req(input$file2)
+    plotDensities(mat_imp(), main="Final processed data", legend="topright")
   })
 
   table <- reactive({
@@ -454,12 +514,15 @@ server <- function(input, output, session) {
 
     if (input$GOset == "BP") {
       req(BP())
+      validate(need(min(BP()@result$p.adjust)<0.05, "No enrichment"))
       dotplot(BP(), showCategory = input$ndot)
     } else if (input$GOset == "CC") {
       req(CC())
+      validate(need(min(CC()@result$p.adjust)<0.05, "No enrichment"))
       dotplot(CC(), showCategory = input$ndot)
     } else if (input$GOset == "MF") {
       req(MF())
+      validate(need(min(MF()@result$p.adjust)<0.05, "No enrichment"))
       dotplot(MF(), showCategory = input$ndot)
     }
   })
@@ -468,12 +531,15 @@ server <- function(input, output, session) {
     validate(need(input$ncnet, "Requires number"))
     if (input$GOset == "BP") {
       req(BP())
+      validate(need(min(BP()@result$p.adjust)<0.05, "No enrichment"))
       cnetplot(BP(), showCategory = input$ncnet)
     } else if (input$GOset == "CC") {
       req(CC())
+      validate(need(min(CC()@result$p.adjust)<0.05, "No enrichment"))
       cnetplot(CC(), showCategory = input$ncnet)
     } else if (input$GOset == "MF") {
       req(MF())
+      validate(need(min(MF()@result$p.adjust)<0.05, "No enrichment"))
       cnetplot(MF(), showCategory = input$ncnet)
     }
   })
@@ -638,5 +704,35 @@ output$oratable<-renderDT({
       req(reducedTerms_MF())
       reducedTerms_MF() 
     }
+  })
+  
+  DOSE<-reactive({
+    entrez<-getBM(attributes="entrezgene_id", filters = "uniprotswissprot", 
+                   mart=humanmart, values = stat_subset()$uniprot)
+    enrichDO(
+      entrez$entrezgene_id,
+      ont = "DO",
+      organism = "hsa",
+      pvalueCutoff = 0.05,
+      pAdjustMethod = "BH",
+      minGSSize = 10,
+      maxGSSize = 500,
+      qvalueCutoff = 0.2,
+      readable = TRUE
+    )
+  })
+  
+  output$dotplot_DO<- renderPlot({
+    validate(need(min(DOSE()@result$p.adjust)<0.05, "No enrichment"))
+    dotplot(DOSE(),showCategory = input$ndot_DO )
+  })
+  
+  output$cnetplot_DO<- renderPlot({
+    validate(need(min(DOSE()@result$p.adjust)<0.05, "No enrichment"))
+    cnetplot(DOSE(),showCategory = input$ncnet_DO )
+  })
+  
+  output$DOtable<-renderDT({
+DOSE()@result
   })
 }
