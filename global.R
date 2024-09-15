@@ -49,7 +49,7 @@ preprocessing <- function(mat, log, norm, imp) {
   } else if (imp == "ImpSeq") {
     mat_imp <- impSeq(mat_norm)
   } else if (imp == "MissForest") {
-    mat_imp_mF <- missForest(mat_norm, maxiter = 1)
+    mat_imp_mF <- missForest(mat_norm)
     mat_imp <- mat_imp_mF$ximp
   } else if (imp == "MinProb") {
     mat_imp <- impute.MinProb(mat_norm)

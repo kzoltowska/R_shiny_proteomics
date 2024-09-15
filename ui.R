@@ -17,7 +17,7 @@ ui <- fluidPage(
       title = "Data overview", fluid = TRUE,
       sidebarLayout(
         sidebarPanel(
-          width = 4,
+          width = 2,
           fileInput("file1", "Choose data file"),
           fileInput("file2", "Choose sample info file"),
           # create radiobuttons to select how to view the data
@@ -39,7 +39,7 @@ ui <- fluidPage(
                   to filter out selected genes", value = "")
         ),
         mainPanel(
-          width = 6,
+          width = 10,
           # show entire data
           conditionalPanel(
             condition = "input.Description == 'Entire dataset'",
@@ -62,11 +62,13 @@ ui <- fluidPage(
           # Show a graphical summary
           conditionalPanel(
             condition = "input.Description == 'PCA and correlation plots'",
-            plotOutput("pca"),
-            plotOutput("cor_plot")
+            fluidRow(
+            (column(5,plotOutput("pca"))),
+            (column(5, plotOutput("cor_plot")))
           )
         )
       )
+    )
     ),
     # create tab for log, normalisation and imputation
     tabPanel(
@@ -93,8 +95,7 @@ ui <- fluidPage(
           pickerInput(
             inputId = "imputation",
             label = "Choose imputation type",
-            choices = c("None", "MinDet", "ImpSeq", "MissForest", "MinProb", "KNN"),
-            choicesOpt = list(subtext = c("", "", "", "Very slow (maxiter=1)", ""))
+            choices = c("None", "MinDet", "ImpSeq", "MissForest", "MinProb", "KNN")
           )
         )
       ),
@@ -199,8 +200,12 @@ ui <- fluidPage(
       ),
       br(),
       br(),
+      fluidRow(DTOutput("summary_num")),
+      br(),
+      br(),
       # output in the form of table than can be downloaded and saved as csv file
-      fluidRow(DTOutput("stat_table")),
+      fluidRow(
+        column(2,DTOutput("stat_table"))),
       fluidRow(
         downloadButton("downloadData_stat", label = "Download"),
         tableOutput("table_stat")
@@ -238,7 +243,8 @@ ui <- fluidPage(
     br(),
     fluidRow(
       column(3,numericInput(label="Number of categories on dot plot", inputId = "ndot_DO", value=10  )),
-      column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet_DO", value=10 ))
+      column(3,numericInput(label="Number of categories on cnet plot", inputId = "ncnet_DO", value=10 )),
+      column(2, actionButton(inputId="calc_dose",label="Calculate"))
     ),
     br(),
     fluidRow(column(6, withSpinner(plotOutput("dotplot_DO"))),

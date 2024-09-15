@@ -165,11 +165,11 @@ server <- function(input, output, session) {
       transposed = FALSE
     )
     biplot(pca,
-      labSize = 7, pointSize = 7, sizeLoadingsNames = 8,
+      labSize = 4, pointSize = 4, sizeLoadingsNames = 8,
       colby = "Condition",
       encircle = TRUE,
       encircleFill = TRUE,
-      legendPosition = "top", legendLabSize = 16, legendIconSize = 8.0
+      legendPosition = "top", legendLabSize = 10, legendIconSize = 4.0
     )
   })
 
@@ -179,7 +179,8 @@ server <- function(input, output, session) {
     res_cor <- cor(mat)
     corrplot(res_cor,
       type = "upper",
-      tl.col = "black", tl.srt = 45
+      tl.col = "black", tl.srt = 45,
+      mar = c(1, 1, 4, 1)
     )
   })
 
@@ -234,7 +235,7 @@ server <- function(input, output, session) {
   output$boxplot_data <- renderPlot({
     req(input$file1)
     req(input$file2)
-    boxplot(mat_imp(), col = as.character(groups_color()), las = 2)
+    boxplot(mat_imp(), col = c(rep(brewer.pal(4,"Dark2")[1], length(input$group1)), rep(brewer.pal(4,"Dark2")[2], length(input$group2))), las = 2)
   })
 
   output$heatmap_data <- renderPlot({
@@ -428,6 +429,7 @@ server <- function(input, output, session) {
     stat_subset_tmp1 <- merge(stat(), data_raw)
     stat_subset_tmp1 <- stat_subset_tmp1 %>%
       filter((logfc < input$logfc_heat_tab_min | logfc > input$logfc_heat_tab_max) & FDR <= input$pval_heat_tab)
+    
   })
 
   output$heatmap_stat <- renderPlot({
@@ -442,6 +444,11 @@ server <- function(input, output, session) {
     )
   })
 
+  output$summary_num<-DT::renderDT({
+    req(stat_subset())
+    up_down<-data.frame(up=nrow(stat_subset() %>% filter(logfc > 0)),
+                       down=nrow(stat_subset() %>% filter(logfc < 0)))
+  })
   output$stat_table <- DT::renderDT({
     req(stat_subset())
     stat_tmp2 <- stat_subset() %>%
@@ -550,7 +557,7 @@ output$oratable<-renderDT({
   } else if (input$GOset == "CC") {
     CC()@result
   } else if (input$GOset == "MF") {
-    MF()@results
+    MF()@result
   }
 })
 
@@ -706,12 +713,14 @@ output$oratable<-renderDT({
     }
   })
   
-  DOSE<-reactive({
+  
+  
+  DOSE<-eventReactive(input$calc_dose, {
     entrez<-getBM(attributes="entrezgene_id", filters = "uniprotswissprot", 
                    mart=humanmart, values = stat_subset()$uniprot)
     enrichDO(
       entrez$entrezgene_id,
-      ont = "DO",
+      ont = "HDO",
       organism = "hsa",
       pvalueCutoff = 0.05,
       pAdjustMethod = "BH",
